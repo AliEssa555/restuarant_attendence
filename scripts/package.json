@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "seed": "tsx seed.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:local": "node --import tsx seed-local.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",

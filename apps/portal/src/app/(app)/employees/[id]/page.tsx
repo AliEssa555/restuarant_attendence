@@ -1,5 +1,7 @@
 'use client';
 
+import { FACE_RECOGNITION_ENABLED } from '@/lib/features';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -79,7 +81,7 @@ export default function EmployeeDetailPage() {
         <ProfileCard employee={employee} />
         <div className="flex flex-col gap-6">
           <AccountCard employee={employee} />
-          <EnrolmentReviewCard employee={employee} />
+          {FACE_RECOGNITION_ENABLED && <EnrolmentReviewCard employee={employee} />}
         </div>
       </div>
 
@@ -224,10 +226,12 @@ function AccountCard({ employee }: { employee: Employee }) {
           label="Last event"
           value={lastEvent ? dateTimeIn(tz, lastEvent) : 'No activity yet'}
         />
+        {FACE_RECOGNITION_ENABLED && (
         <Field
           label="Face enrolment"
           value={<FaceStatusBadge status={employee.face?.status ?? 'none'} />}
         />
+        )}
 
         <div className="mt-2 flex items-center justify-between gap-4 rounded-md border p-3">
           <div>
@@ -295,7 +299,7 @@ function RecentAttendance({ employeeId }: { employeeId: string }) {
                 <TableHead>Event</TableHead>
                 <TableHead className="hidden sm:table-cell">Method</TableHead>
                 <TableHead>Result</TableHead>
-                <TableHead className="hidden md:table-cell">Match</TableHead>
+                {FACE_RECOGNITION_ENABLED && <TableHead className="hidden md:table-cell">Match</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -325,9 +329,9 @@ function RecentAttendance({ employeeId }: { employeeId: string }) {
                       </p>
                     )}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell tabular-nums">
+                  {FACE_RECOGNITION_ENABLED && (<TableCell className="hidden md:table-cell tabular-nums">
                     {similarityLabel(record.face?.similarity)}
-                  </TableCell>
+                  </TableCell>)}
                 </TableRow>
               ))}
             </TableBody>

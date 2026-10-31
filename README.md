@@ -1,3 +1,5 @@
+> **Local customer demo:** see [demo/README.md](demo/README.md). Run `docker compose up --build -d`, then use the **Local demo APK** workflow artifact. Current demos use GPS attendance; face recognition is deprecated.
+
 # Restaurant Attendance — Demo v0.1
 
 Attendance for small restaurants. Employees check in on their phone; managers

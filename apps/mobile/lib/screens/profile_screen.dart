@@ -53,7 +53,7 @@ class ProfileScreen extends ConsumerWidget {
             label: 'Scheduled start',
             value: employee?.scheduledStart ?? 'Not set',
           ),
-          _Row(
+          if (Env.faceRecognitionEnabled) _Row(
             label: 'Face enrolment',
             value: switch (employee?.faceStatus) {
               FaceStatus.approved => 'Approved',

@@ -1,5 +1,7 @@
 'use client';
 
+import { FACE_RECOGNITION_ENABLED } from '@/lib/features';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { CheckCheck } from 'lucide-react';
@@ -32,6 +34,8 @@ export default function ReviewsPage() {
   const pendingEnrolments = employees.data.filter(
     (e) => e.face?.status === 'pending',
   );
+
+  if (!FACE_RECOGNITION_ENABLED) return <PageHeader title="Location attendance" description="Face recognition is currently deprecated. GPS rejection evidence is available in Attendance." />;
 
   return (
     <>

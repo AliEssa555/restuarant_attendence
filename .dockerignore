@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/.next
+**/build
+**/.dart_tool
+**/.gradle
+**/.env*
+**/*.log
+**/*.jks
+**/*.keystore
+**/key.properties
+**/google-services.json
+**/GoogleService-Info.plist
+**/emulator-data
+**/__pycache__
+firebase/functions/lib

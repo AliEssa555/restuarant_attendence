@@ -1,5 +1,7 @@
 'use client';
 
+import { FACE_RECOGNITION_ENABLED } from '@/lib/features';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { Plus, UserPlus } from 'lucide-react';
@@ -43,7 +45,7 @@ export default function EmployeesPage() {
     <>
       <PageHeader
         title="Employees"
-        description="Add staff, set their shift start, and manage face enrolment."
+        description="Add staff, set their shift start, and manage attendance."
         action={
           <Button asChild>
             <Link href="/employees/new">
@@ -97,7 +99,7 @@ export default function EmployeesPage() {
                   <TableHead>Name</TableHead>
                   <TableHead className="hidden sm:table-cell">Role</TableHead>
                   <TableHead>Now</TableHead>
-                  <TableHead className="hidden md:table-cell">Face</TableHead>
+                  {FACE_RECOGNITION_ENABLED && <TableHead className="hidden md:table-cell">Face</TableHead>}
                   <TableHead className="hidden lg:table-cell">Shift start</TableHead>
                   <TableHead className="text-right">Active</TableHead>
                 </TableRow>
@@ -153,9 +155,11 @@ function EmployeeRow({ employee }: { employee: Employee }) {
       <TableCell>
         <PresenceBadge status={employee.presence?.status === 'in' ? 'in' : 'out'} />
       </TableCell>
+      {FACE_RECOGNITION_ENABLED && (
       <TableCell className="hidden md:table-cell">
         <FaceStatusBadge status={employee.face?.status ?? 'none'} />
       </TableCell>
+      )}
       <TableCell className="hidden lg:table-cell tabular-nums">
         {employee.scheduledStart || <span className="text-muted-foreground">—</span>}
       </TableCell>

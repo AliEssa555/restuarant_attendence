@@ -116,7 +116,7 @@ function DetailBody({
         <div className="flex gap-2 rounded-md bg-muted p-3 text-sm">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <span>
-            Manual attendance has no face photo. GPS evidence, when supplied, appears below.
+            Location attendance. GPS evidence and validation results appear below when supplied.
           </span>
         </div>
       ) : (

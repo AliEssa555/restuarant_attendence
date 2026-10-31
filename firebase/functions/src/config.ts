@@ -8,12 +8,12 @@ export const REGION = 'asia-south1';
 
 /** Default restaurant settings applied by `createRestaurant`. */
 export const DEFAULT_SETTINGS = {
-  attendanceMode: 'both' as const,
+  attendanceMode: 'manual' as const,
   /** Cosine similarity at or above which a face check-in is auto-verified. */
   faceVerifyThreshold: 0.75,
   /** At or above this (but below verify) the record goes to manager review. */
   faceReviewThreshold: 0.6,
-  requireMarker: true,
+  requireMarker: false,
   lateGraceMinutes: 10,
   /** GPS geofencing — ON by default. Owner can disable via portal settings. */
   requireLocation: true,

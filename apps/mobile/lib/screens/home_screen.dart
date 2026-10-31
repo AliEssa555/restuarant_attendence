@@ -110,7 +110,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   tone: _Tone.error,
                 )
               else ...[
-                if (restaurant.allowsFace)
+                if (Env.faceRecognitionEnabled && restaurant.allowsFace)
                   FilledButton.icon(
                     onPressed: (_busy || !faceReady)
                         ? null
@@ -122,7 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       isIn ? 'Check out with face' : 'Check in with face',
                     ),
                   ),
-                if (restaurant.allowsFace && restaurant.allowsManual)
+                if (Env.faceRecognitionEnabled && restaurant.allowsFace && restaurant.allowsManual)
                   const SizedBox(height: 12),
                 if (restaurant.allowsManual)
                   OutlinedButton.icon(
@@ -133,15 +133,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2.5),
                           )
-                        : const Icon(Icons.touch_app_outlined),
-                    label: Text(isIn ? 'Check out manually' : 'Check in manually'),
+                        : const Icon(Icons.location_on_outlined),
+                    label: Text(isIn ? 'Check out with location' : 'Check in with location'),
                   ),
-                if (restaurant.allowsFace && !faceReady) ...[
+                if (Env.faceRecognitionEnabled && restaurant.allowsFace && !faceReady) ...[
                   const SizedBox(height: 16),
                   _FaceNotReadyNotice(employee: employee),
                 ],
               ],
-              if (Env.debugSimilarity) ...[
+              if (Env.faceRecognitionEnabled && Env.debugSimilarity) ...[
                 const SizedBox(height: 32),
                 OutlinedButton.icon(
                   onPressed: () => context.push(Routes.debugSimilarity),

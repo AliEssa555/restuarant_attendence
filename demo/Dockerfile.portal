@@ -1,0 +1,23 @@
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=demo-local-api-key
+ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-restaurant-attendance.firebaseapp.com
+ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-restaurant-attendance
+ENV NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=demo-restaurant-attendance.appspot.com
+ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+ENV NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:demo
+ENV NEXT_PUBLIC_FUNCTIONS_REGION=asia-south1
+ENV NEXT_PUBLIC_USE_EMULATORS=true
+ENV NEXT_PUBLIC_EMULATOR_HOST=127.0.0.1
+COPY apps/portal/package*.json ./
+RUN npm ci
+COPY apps/portal/ ./
+RUN npm run build
+FROM node:20-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY --from=build /app ./
+EXPOSE 3000
+CMD ["npm", "run", "start", "--", "--hostname", "0.0.0.0"]

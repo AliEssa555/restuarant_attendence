@@ -1,5 +1,7 @@
 'use client';
 
+import { FACE_RECOGNITION_ENABLED } from '@/lib/features';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -40,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Close the slide-over whenever the route changes.
   React.useEffect(() => setOpen(false), [pathname]);
 
-  const items = NAV.filter((item) => !item.ownerOnly || isOwner);
+  const items = NAV.filter((item) => (!item.ownerOnly || isOwner) && (FACE_RECOGNITION_ENABLED || item.href !== '/reviews'));
 
   const nav = (
     <nav className="flex flex-col gap-1">

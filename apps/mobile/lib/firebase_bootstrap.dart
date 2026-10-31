@@ -11,12 +11,17 @@ import 'firebase_options.dart';
 /// Emulator Suite.
 ///
 /// Call this once from `main` before `runApp`.
-Future<void> bootstrapFirebase() async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+Future<void> bootstrapFirebase({String? emulatorHost}) async {
+  await Firebase.initializeApp(options: Env.localDemo
+      ? const FirebaseOptions(apiKey: 'AIzaSy000000000000000000000000000000000',
+          appId: '1:123456789:android:0000000000000000000000', messagingSenderId: '123456789',
+          projectId: 'demo-restaurant-attendance',
+          storageBucket: 'demo-restaurant-attendance.appspot.com')
+      : DefaultFirebaseOptions.currentPlatform);
 
   if (!Env.useEmulators) return;
 
-  final host = Env.emulatorHost;
+  final host = emulatorHost ?? Env.emulatorHost;
 
   await FirebaseAuth.instance.useAuthEmulator(host, Env.authEmulatorPort);
   FirebaseFirestore.instance.useFirestoreEmulator(host, Env.firestoreEmulatorPort);

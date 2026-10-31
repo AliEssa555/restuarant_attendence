@@ -1,4 +1,5 @@
 'use client';
+import { FACE_RECOGNITION_ENABLED } from '@/lib/features';
 
 import * as React from 'react';
 import { Download } from 'lucide-react';
@@ -144,8 +145,8 @@ export default function AttendancePage() {
               onChange={(e) => setMethod(e.target.value)}
             >
               <option value="">Any</option>
-              <option value="face">Face</option>
-              <option value="manual">Manual</option>
+              {FACE_RECOGNITION_ENABLED && <option value="face">Face</option>}
+              <option value="manual">Location / tap</option>
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -201,7 +202,7 @@ export default function AttendancePage() {
                     <TableHead>Event</TableHead>
                     <TableHead className="hidden sm:table-cell">Method</TableHead>
                     <TableHead>Result</TableHead>
-                    <TableHead className="hidden lg:table-cell">Match</TableHead>
+                    {FACE_RECOGNITION_ENABLED && <TableHead className="hidden lg:table-cell">Match</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -243,9 +244,9 @@ export default function AttendancePage() {
                           </p>
                         )}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell tabular-nums">
+                      {FACE_RECOGNITION_ENABLED && (<TableCell className="hidden lg:table-cell tabular-nums">
                         {similarityLabel(record.face?.similarity)}
-                      </TableCell>
+                      </TableCell>)}
                     </TableRow>
                   ))}
                 </TableBody>
