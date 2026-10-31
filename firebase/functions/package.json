@@ -5,7 +5,7 @@
   "description": "Cloud Functions for the Restaurant Attendance demo",
   "main": "lib/index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
