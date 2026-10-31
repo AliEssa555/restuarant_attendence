@@ -1,4 +1,4 @@
-name: Android APK to Firebase
+name: Android APK download
 
 on:
   push:
@@ -13,28 +13,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-distribution-${{ github.ref }}
+  group: android-apk-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  distribute:
+  build:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
-      FIREBASE_TESTER_GROUPS: ${{ vars.FIREBASE_TESTER_GROUPS }}
-      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/restaurant-release.jks
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare Firebase configuration and signing key
+      - name: Prepare Firebase app configuration
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: python3 scripts/ci/prepare_android.py
 
       - uses: actions/setup-java@v4
@@ -46,10 +38,6 @@ jobs:
         with:
           channel: stable
           cache: true
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
 
       - name: Resolve Flutter dependencies
         working-directory: apps/mobile
@@ -63,7 +51,7 @@ jobs:
         working-directory: apps/mobile
         run: flutter test
 
-      - name: Build signed APK
+      - name: Build APK for manual testing
         working-directory: apps/mobile
         run: >-
           flutter build apk --release
@@ -71,50 +59,31 @@ jobs:
           --dart-define=USE_EMULATORS=false
           --dart-define=FAKE_FACE=false
 
-      - name: Save APK as a workflow artifact
+      - name: Upload downloadable APK
+        id: apk
         uses: actions/upload-artifact@v4
         with:
           name: restaurant-attendance-${{ github.run_number }}
           path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
-      - name: Distribute APK to Firebase testers
+      - name: Show download link
         env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-distribution.json
+          APK_DOWNLOAD_URL: ${{ steps.apk.outputs.artifact-url }}
         shell: bash
         run: |
-          set -euo pipefail
-          trap 'rm -f "$GOOGLE_APPLICATION_CREDENTIALS"' EXIT
-          python3 - <<'PY'
-          import json, os
-          from pathlib import Path
-          raw = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON', '')
-          if not raw:
-              raise SystemExit('Missing GitHub secret: FIREBASE_SERVICE_ACCOUNT_JSON')
-          account = json.loads(raw)
-          config = json.loads(Path('apps/mobile/android/app/google-services.json').read_text())
-          if account.get('type') != 'service_account' or not account.get('private_key'):
-              raise SystemExit('FIREBASE_SERVICE_ACCOUNT_JSON must be a service account key JSON.')
-          if account.get('project_id') != config['project_info']['project_id']:
-              raise SystemExit('Service account and Android app must belong to the same Firebase project.')
-          path = Path(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
-          path.write_text(raw)
-          path.chmod(0o600)
-          PY
-          printf 'GitHub build %s\nCommit: %s\n' "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > "$RUNNER_TEMP/release-notes.txt"
-          npx --yes firebase-tools@15.34.2 appdistribution:distribute \
-            apps/mobile/build/app/outputs/flutter-apk/app-release.apk \
-            --app "$FIREBASE_APP_ID" \
-            --groups "$FIREBASE_TESTER_GROUPS" \
-            --release-notes-file "$RUNNER_TEMP/release-notes.txt" \
-            --non-interactive
+          {
+            echo '### Android APK ready'
+            printf '[Download APK archive](%s)\n\n' "$APK_DOWNLOAD_URL"
+            echo 'Download the ZIP, extract app-release.apk, and email the APK to testers.'
+            echo 'The artifact download requires GitHub sign-in and expires after 30 days.'
+            echo 'This test APK uses demo debug signing. A later build may require uninstalling the previous APK.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Clean up signing and configuration files
+      - name: Restore generated configuration
         if: always()
         shell: bash
         run: |
-          rm -f "$ANDROID_KEYSTORE_PATH" "$RUNNER_TEMP/firebase-distribution.json"
           rm -f apps/mobile/android/app/google-services.json
           git restore apps/mobile/lib/firebase_options.dart

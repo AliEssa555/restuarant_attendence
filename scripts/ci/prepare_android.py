@@ -1,5 +1,4 @@
-"""Prepare an Android CI build without committing Firebase config or signing keys."""
-import base64
+"""Prepare an Android CI build without committing Firebase config."""
 import json
 import os
 from pathlib import Path
@@ -8,14 +7,8 @@ PACKAGE_NAME = 'com.demo.attendance.restaurant_attendance'
 
 
 def prepare():
-    required = [
-        'GOOGLE_SERVICES_JSON', 'FIREBASE_APP_ID', 'FIREBASE_TESTER_GROUPS',
-        'ANDROID_KEYSTORE_BASE64', 'ANDROID_KEYSTORE_PATH', 'ANDROID_KEY_ALIAS',
-        'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_PASSWORD',
-    ]
-    missing = [name for name in required if not os.environ.get(name, '').strip()]
-    if missing:
-        raise SystemExit('Configure GitHub Actions secrets/variables: ' + ', '.join(missing))
+    if not os.environ.get('GOOGLE_SERVICES_JSON', '').strip():
+        raise SystemExit('Configure the GitHub Actions secret GOOGLE_SERVICES_JSON.')
 
     config = json.loads(os.environ['GOOGLE_SERVICES_JSON'])
     project = config['project_info']
@@ -25,8 +18,6 @@ def prepare():
         raise SystemExit('google-services.json must contain exactly one matching Android package: ' + PACKAGE_NAME)
     client = clients[0]
     app_id = client['client_info']['mobilesdk_app_id']
-    if app_id != os.environ['FIREBASE_APP_ID']:
-        raise SystemExit('FIREBASE_APP_ID does not match the Android app in google-services.json.')
     if project['project_id'] == 'restaurant-attendance-demo' or app_id.startswith('1:000000000000:'):
         raise SystemExit('Use real Firebase configuration, not the emulator placeholder.')
 
@@ -57,10 +48,7 @@ class DefaultFirebaseOptions {
     mobile = Path('apps/mobile')
     (mobile / 'android/app/google-services.json').write_text(json.dumps(config))
     (mobile / 'lib/firebase_options.dart').write_text(dart)
-    path = Path(os.environ['ANDROID_KEYSTORE_PATH'])
-    path.write_bytes(base64.b64decode(''.join(os.environ['ANDROID_KEYSTORE_BASE64'].split()), validate=True))
-    path.chmod(0o600)
-    print('Prepared Android Firebase config and release signing key.')
+    print('Prepared Android Firebase configuration.')
 
 
 if __name__ == '__main__':
