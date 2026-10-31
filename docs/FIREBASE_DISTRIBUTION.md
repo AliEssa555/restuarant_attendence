@@ -1,32 +1,33 @@
-# Android tester build
+# Download an APK from GitHub Actions
 
-The app must first be connected to your Firebase project using the README's Firebase setup. Register the Android package `com.demo.attendance.restaurant_attendance`, then select that app in Firebase Console → App Distribution → Get started. Create a tester group such as `restaurant-testers`.
+Firebase App Distribution is shelved for now. The workflow builds an APK for you to download and email manually. It does not upload to Firebase App Distribution or send invitations.
 
-From `apps/mobile`:
+## One required secret
 
-```bash
-flutter pub get
-flutter analyze
-flutter test
-flutter build apk --release
-```
+You only need `GOOGLE_SERVICES_JSON`, which contains the real Android app configuration downloaded from Firebase. In GitHub, go to **Settings → Secrets and variables → Actions → Secrets → New repository secret** to set it.
 
-The APK is `apps/mobile/build/app/outputs/flutter-apk/app-release.apk`. This repository currently signs release builds with the debug key for demo testing. Configure a stable release signing key before production use; changing signing keys prevents updating an existing installation in place.
+No repository variables, service-account credentials, or Android signing secrets are required. The App ID is read from the JSON. The Android package must be `com.demo.attendance.restaurant_attendance`.
 
-From the repository root, after installing Firebase CLI and signing in:
+## Get the APK
 
-```bash
-firebase login
-firebase appdistribution:distribute apps/mobile/build/app/outputs/flutter-apk/app-release.apk \
-  --app YOUR_FIREBASE_ANDROID_APP_ID \
-  --groups restaurant-testers \
-  --release-notes "GPS attendance: owner fence settings and mock-location audit trail"
-```
+1. Merge the workflow PR into `main`.
+2. Open **Actions → Android APK download**. Merging the workflow triggers a run; future changes to mobile or CI files on `main` also trigger it. Use **Run workflow → main** for a manual build.
+3. Wait for the build to finish successfully. The workflow resolves dependencies, analyzes and tests the app, then builds the APK.
+4. Open the run's **Summary** and click **Download APK archive**, or scroll down to **Artifacts** and click `restaurant-attendance-<run number>`.
+5. Extract the downloaded ZIP. Email `app-release.apk` to your testers, or upload that APK to a file-sharing service and email its share link.
 
-Use the Android App ID from Firebase project settings, rather than the project ID. Uploading with a tester group sends invitations; run this command only when ready to invite those testers. They accept the invitation with the invited Google account and follow the installation instructions, optionally using Firebase App Tester.
+The GitHub artifact link requires GitHub sign-in and expires after 30 days. Download the APK yourself for testers who do not have GitHub access. The APK is not a public permanent download URL.
 
-Before testing, deploy the functions and Firestore rules together. In the owner portal, set the restaurant latitude, longitude and radius, then save. Both check-in and check-out require GPS by default. Test inside/outside the fence and a mock GPS provider; rejected attempts should appear in attendance details without changing presence. An emulator fix may be flagged as mocked. To exercise other emulator flows, explicitly disable location in that demo restaurant's settings.
+## Tester installation
 
-GPS evidence is reported by the phone. The backend checks reported mock status, accuracy, capture age and distance against its own clock and settings; this does not authenticate a GPS signal or defeat a modified client. Photo upload freshness remains a separate check.
+Testers download the APK to an Android phone, open it and allow that browser/file app to install unknown apps when prompted. They do not need Firebase App Tester for this manual flow.
 
-Official instructions: https://firebase.google.com/docs/app-distribution/android/distribute-cli
+The repository's existing demo signing configuration signs the release APK with a debug key. No manual keystore creation is needed. The key can change between GitHub runners, so a later build may require uninstalling the earlier APK before installing the new one; uninstalling removes local app data. Stable release signing can be added later with Firebase distribution.
+
+## App prerequisites
+
+The APK connects to the real Firebase project from `GOOGLE_SERVICES_JSON`, with emulator and fake-face modes disabled. Deploy the backend and rules, create restaurant/employee accounts, and set restaurant coordinates in the portal before testing attendance.
+
+The real face model is not included in the repository. Manual attendance is available; face attendance needs `assets/models/mobilefacenet.tflite` bundled according to `apps/mobile/assets/models/MODEL.md`.
+
+The Flutter SDK is unavailable in the authoring environment, so the first GitHub run must verify Android compilation. Build or test failures appear in the relevant Actions step. Firebase distribution credentials and tester-group setup can wait until distribution is resumed.

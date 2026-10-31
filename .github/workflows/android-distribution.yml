@@ -1,0 +1,89 @@
+name: Android APK download
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'scripts/ci/**'
+      - '.github/workflows/android-distribution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Firebase app configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: python3 scripts/ci/prepare_android.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Analyze mobile app
+        working-directory: apps/mobile
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test mobile app
+        working-directory: apps/mobile
+        run: flutter test
+
+      - name: Build APK for manual testing
+        working-directory: apps/mobile
+        run: >-
+          flutter build apk --release
+          --build-number="$GITHUB_RUN_NUMBER"
+          --dart-define=USE_EMULATORS=false
+          --dart-define=FAKE_FACE=false
+
+      - name: Upload downloadable APK
+        id: apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-attendance-${{ github.run_number }}
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Show download link
+        env:
+          APK_DOWNLOAD_URL: ${{ steps.apk.outputs.artifact-url }}
+        shell: bash
+        run: |
+          {
+            echo '### Android APK ready'
+            printf '[Download APK archive](%s)\n\n' "$APK_DOWNLOAD_URL"
+            echo 'Download the ZIP, extract app-release.apk, and email the APK to testers.'
+            echo 'The artifact download requires GitHub sign-in and expires after 30 days.'
+            echo 'This test APK uses demo debug signing. A later build may require uninstalling the previous APK.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore generated configuration
+        if: always()
+        shell: bash
+        run: |
+          rm -f apps/mobile/android/app/google-services.json
+          git restore apps/mobile/lib/firebase_options.dart

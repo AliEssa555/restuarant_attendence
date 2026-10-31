@@ -20,6 +20,11 @@ const _serverReasonCodes = <String>[
   'NOT_CHECKED_IN',
   'METHOD_NOT_ALLOWED',
   'EMPLOYEE_INACTIVE',
+  'LOCATION_REQUIRED',
+  'LOCATION_OUT_OF_RANGE',
+  'LOCATION_MOCK',
+  'LOCATION_ACCURACY_LOW',
+  'LOCATION_STALE',
 ];
 
 void main() {
