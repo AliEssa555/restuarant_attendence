@@ -1,0 +1,33 @@
+{
+  "name": "restaurant-attendance",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Face + location-marker attendance for small restaurants: Flutter app, Next.js portal, Firebase backend",
+  "scripts": {
+    "setup": "npm run install:functions && npm run install:portal && npm run install:scripts && npm run install:rules-tests && npm run setup:env",
+    "install:functions": "npm --prefix firebase/functions install",
+    "install:portal": "npm --prefix apps/portal install",
+    "install:scripts": "npm --prefix scripts install",
+    "install:rules-tests": "npm --prefix firebase/tests install",
+    "setup:env": "node -e \"const fs=require('fs');const t='apps/portal/.env.local';if(fs.existsSync(t)){console.log(t+' already exists, leaving it alone.')}else{fs.copyFileSync('apps/portal/.env.local.example',t);console.log('Created '+t+' — fill it in, or keep the emulator defaults.')}\"",
+    "emulators": "firebase --project restaurant-attendance-demo --config firebase/firebase.json emulators:start",
+    "emulators:seed": "firebase --project restaurant-attendance-demo --config firebase/firebase.json emulators:exec \"npm run seed\"",
+    "seed": "npm --prefix scripts run seed",
+    "dev:portal": "npm --prefix apps/portal run dev",
+    "build:functions": "npm --prefix firebase/functions run build",
+    "build:portal": "npm --prefix apps/portal run build",
+    "test": "npm run test:functions && npm run test:mobile",
+    "test:functions": "npm --prefix firebase/functions test",
+    "test:mobile": "cd apps/mobile && flutter test",
+    "test:rules": "npm --prefix firebase/tests run test:emulated",
+    "test:all": "npm run test && npm run test:rules",
+    "lint": "npm run typecheck:functions && npm run typecheck:portal && npm run analyze:mobile",
+    "typecheck:functions": "npm --prefix firebase/functions run typecheck",
+    "typecheck:portal": "npm --prefix apps/portal run typecheck",
+    "analyze:mobile": "cd apps/mobile && flutter analyze",
+    "deploy": "firebase --config firebase/firebase.json deploy --only functions,firestore,storage"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

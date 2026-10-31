@@ -1,0 +1,17 @@
+{
+  "name": "@restaurant-attendance/rules-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Firestore and Storage security rules tests (run against the Emulator Suite)",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:emulated": "firebase emulators:exec --project restaurant-attendance-demo --only firestore,storage \"npm test\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.2",
+    "vitest": "^2.1.5"
+  }
+}

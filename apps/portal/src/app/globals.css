@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens, light and dark. The teal primary matches the Flutter app's
+ * seed colour so the two halves of the product read as one system.
+ */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 200 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 200 20% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 20% 12%;
+
+    --primary: 175 77% 26%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 14% 96%;
+    --secondary-foreground: 200 20% 20%;
+
+    --muted: 180 14% 96%;
+    --muted-foreground: 200 10% 44%;
+
+    --accent: 175 40% 94%;
+    --accent-foreground: 175 77% 20%;
+
+    --destructive: 0 72% 46%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 150 62% 34%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 35 92% 42%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 200 14% 90%;
+    --input: 200 14% 88%;
+    --ring: 175 77% 32%;
+
+    --radius: 0.65rem;
+  }
+
+  .dark {
+    --background: 200 24% 9%;
+    --foreground: 180 12% 94%;
+
+    --card: 200 22% 12%;
+    --card-foreground: 180 12% 94%;
+
+    --popover: 200 22% 12%;
+    --popover-foreground: 180 12% 94%;
+
+    --primary: 175 62% 44%;
+    --primary-foreground: 200 30% 8%;
+
+    --secondary: 200 16% 18%;
+    --secondary-foreground: 180 12% 92%;
+
+    --muted: 200 16% 18%;
+    --muted-foreground: 200 10% 64%;
+
+    --accent: 200 20% 20%;
+    --accent-foreground: 175 62% 72%;
+
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 150 48% 46%;
+    --success-foreground: 200 30% 8%;
+
+    --warning: 35 82% 56%;
+    --warning-foreground: 200 30% 8%;
+
+    --border: 200 14% 22%;
+    --input: 200 14% 24%;
+    --ring: 175 62% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+}
+
+/* The poster page prints to A4; everything that is not the poster is hidden. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+}

@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// Restaurant Attendance — Storage security rules (see TECHNICAL_PLAN.md §6).
+//
+// Employees may only *create* objects under their own prefix, and only JPEGs
+// under 3 MB. Nothing is updatable or deletable by a client, so an uploaded
+// check-in photo is immutable evidence. Staff can read everything for their own
+// restaurant; employees can read only their own enrolment photo.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function claims() {
+      return request.auth.token;
+    }
+    function rid() {
+      return isSignedIn() ? claims().get('rid', '') : '';
+    }
+    function role() {
+      return isSignedIn() ? claims().get('role', '') : '';
+    }
+    function eid() {
+      return isSignedIn() ? claims().get('eid', '') : '';
+    }
+    function isStaffOf(r) {
+      return isSignedIn() && rid() == r && (role() == 'owner' || role() == 'manager');
+    }
+    function isEmployeeSelf(r, e) {
+      return isSignedIn() && rid() == r && role() == 'employee' && eid() == e;
+    }
+    function isValidJpeg() {
+      return request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 3 * 1024 * 1024;
+    }
+
+    // Enrolment photos.
+    match /faces/{rid}/{eid}/{fileName} {
+      allow read: if isStaffOf(rid) || isEmployeeSelf(rid, eid);
+      allow create: if isEmployeeSelf(rid, eid) && isValidJpeg();
+      allow update, delete: if false;
+    }
+
+    // Check-in photos.
+    match /checkins/{rid}/{eid}/{fileName} {
+      allow read: if isStaffOf(rid);
+      allow create: if isEmployeeSelf(rid, eid) && isValidJpeg();
+      allow update, delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

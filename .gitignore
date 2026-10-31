@@ -1,0 +1,66 @@
+# Node
+node_modules/
+.npm
+*.log
+npm-debug.log*
+
+# Next.js
+apps/portal/.next/
+apps/portal/out/
+apps/portal/build/
+apps/portal/.vercel
+
+# Env
+.env
+.env*.local
+!.env.example
+
+# Firebase
+firebase/functions/lib/
+firebase/.runtimeconfig.json
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+database-debug.log*
+pubsub-debug.log*
+storage-debug.log*
+.firebase/
+firebase/emulator-data/
+
+# Flutter / Dart
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/build/
+apps/mobile/.pub-cache/
+apps/mobile/.pub/
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/ios/Flutter/Flutter.framework
+apps/mobile/ios/Flutter/ephemeral/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/android/app/debug/
+apps/mobile/android/app/profile/
+apps/mobile/android/app/release/
+apps/mobile/android/key.properties
+*.jks
+*.keystore
+
+# Firebase generated client config (project specific, created by flutterfire
+# configure). `firebase_options.dart` IS committed, as a placeholder that lets
+# the repo compile against the emulators before anyone runs flutterfire.
+apps/mobile/android/app/google-services.json
+apps/mobile/ios/Runner/GoogleService-Info.plist
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/settings.json
+*.iml
+.DS_Store
+Thumbs.db
+
+# Test output
+coverage/
+*.tsbuildinfo
