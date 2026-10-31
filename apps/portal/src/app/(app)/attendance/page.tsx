@@ -283,10 +283,11 @@ function toCsv(rows: AttendanceRecord[], tz: string): string {
     'Reject reason',
     'Late',
     'Minutes late',
-    'Face match',
-    'Faces detected',
-    'Poster found',
-    'Poster valid',
+    'Latitude',
+    'Longitude',
+    'Distance (m)',
+    'Accuracy (m)',
+    'Mock location',
     'Record id',
   ];
 
@@ -303,10 +304,11 @@ function toCsv(rows: AttendanceRecord[], tz: string): string {
       r.status === 'rejected' ? reasonLabel(r.rejectReason) : '',
       r.late ? 'yes' : 'no',
       String(r.minutesLate ?? 0),
-      r.face?.similarity == null ? '' : r.face.similarity.toFixed(4),
-      r.face ? String(r.face.facesDetected) : '',
-      r.face ? (r.face.markerFound ? 'yes' : 'no') : '',
-      r.face ? (r.face.markerValid ? 'yes' : 'no') : '',
+      r.gps ? String(r.gps.lat) : '',
+      r.gps ? String(r.gps.lng) : '',
+      r.gps ? String(r.gps.distance) : '',
+      r.gps ? String(r.gps.accuracy) : '',
+      r.gps ? (r.gps.isMock ? 'yes' : 'no') : '',
       r.id,
     ].map(csvCell);
   });

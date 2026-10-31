@@ -58,7 +58,7 @@ class _LocalDemoSetupState extends State<LocalDemoSetup> {
           const SizedBox(height: 16),
           const Text('Connect to the demo laptop. Location attendance runs locally; no Firebase billing or face recognition is needed.'),
           const SizedBox(height: 20),
-          TextField(controller: _host, enabled: !_busy, keyboardType: TextInputType.number,
+          TextField(controller: _host, enabled: !_busy, keyboardType: TextInputType.url,
             decoration: const InputDecoration(labelText: 'Laptop Wi-Fi IPv4 address', hintText: '192.168.1.20'),
             onSubmitted: (_) { if (!_busy) _connect(); }),
           if (_error != null) Padding(padding: const EdgeInsets.only(top: 16), child: Text(_error!, style: const TextStyle(color: Colors.red))),
