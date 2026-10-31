@@ -26,7 +26,10 @@ jobs:
           docker compose exec -T -e DEMO_SMOKE_STATE=/data/smoke.json backend node demo/smoke.mjs
       - name: Recreate demo with saved data
         run: |
-          docker compose down
+          docker compose stop
+          docker compose logs --no-color backend
+          docker compose run --rm --no-deps --entrypoint node backend -e "if (!require('node:fs').existsSync('/data/firebase-export-metadata.json')) process.exit(1)"
+          docker compose rm -f
           docker compose up -d --wait --wait-timeout 300
           docker compose exec -T -e DEMO_SMOKE_STATE=/data/smoke.json backend node demo/smoke.mjs --verify-persistence
       - name: Show container logs

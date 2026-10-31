@@ -10,6 +10,7 @@ let stopping = false;
 for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, async () => {
   if (stopping) return;
   stopping = true;
+  console.log("Saving local demo data before shutdown...");
   rmSync(readyFile, { force: true });
   // Export explicitly before stopping the emulator. PID 1 / non-TTY signal
   // handling otherwise lets some CLI versions exit without their auto-export.

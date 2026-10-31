@@ -16,4 +16,5 @@ COPY demo demo
 COPY firebase.demo.json ./
 RUN npm --prefix firebase/functions run build && firebase setup:emulators:firestore && firebase setup:emulators:ui
 EXPOSE 9099 8080 5001 4000
+STOPSIGNAL SIGTERM
 ENTRYPOINT ["node", "demo/start-backend.mjs"]

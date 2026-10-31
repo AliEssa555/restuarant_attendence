@@ -11,6 +11,7 @@ services:
       - "127.0.0.1:4000:4000"
     volumes:
       - demo-data:/data
+    stop_signal: SIGTERM
     stop_grace_period: 60s
     healthcheck:
       test: ["CMD", "node", "demo/healthcheck.mjs"]
