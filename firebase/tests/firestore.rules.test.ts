@@ -336,7 +336,7 @@ describe('employees', () => {
 
   it('stops anyone writing the face data', async () => {
     await assertFails(
-      updateDoc(doc(asOwner(), path), { 'face.status': 'approved' }),
+      updateDoc(doc(asOwner(), path), { 'face.status': 'rejected' }),
     );
     await assertFails(
       updateDoc(doc(asEmployee(), path), { 'face.embedding': [1, 0] }),
@@ -460,5 +460,30 @@ describe('collections that do not exist in the data model', () => {
   it('are denied by the catch-all rule', async () => {
     await assertFails(getDoc(doc(asOwner(), 'secrets/anything')));
     await assertFails(setDoc(doc(asOwner(), 'secrets/anything'), { a: 1 }));
+  });
+});
+
+
+describe('location settings validation', () => {
+  const settings = {
+    attendanceMode: 'both', faceVerifyThreshold: 0.75, faceReviewThreshold: 0.6,
+    requireMarker: true, lateGraceMinutes: 10, requireLocation: true,
+    locationLat: 24.86, locationLng: 67.01, locationRadiusMeters: 100,
+  };
+  it('allows the owner to configure and disable the fence', async () => {
+    await assertSucceeds(updateDoc(doc(asOwner(), `restaurants/${RID}`), { settings }));
+    await assertSucceeds(updateDoc(doc(asOwner(), `restaurants/${RID}`), { 'settings.requireLocation': false }));
+  });
+  it.each([
+    ['locationLat', 91], ['locationLat', -91], ['locationLng', 181], ['locationLng', -181],
+    ['locationRadiusMeters', 9], ['locationRadiusMeters', 5001], ['requireLocation', 'true'],
+    ['locationLat', '24.86'], ['locationRadiusMeters', '100'],
+  ])('rejects invalid %s: %s', async (key, value) => {
+    await assertFails(updateDoc(doc(asOwner(), `restaurants/${RID}`), {settings: {...settings, [key]: value}}));
+  });
+  it('rejects managers and employees changing the fence', async () => {
+    for (const db of [asManager(), asEmployee()]) {
+      await assertFails(updateDoc(doc(db, `restaurants/${RID}`), {settings}));
+    }
   });
 });

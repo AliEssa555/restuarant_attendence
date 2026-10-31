@@ -1,0 +1,12 @@
+import { getFirestore } from 'firebase-admin/firestore';
+export const db = () => getFirestore();
+export const restaurantRef = (rid: string) => db().collection('restaurants').doc(rid);
+export const employeesRef = (rid: string) => restaurantRef(rid).collection('employees');
+export const employeeRef = (rid: string, eid: string) => employeesRef(rid).doc(eid);
+export const attendanceRef = (rid: string) => restaurantRef(rid).collection('attendance');
+export const attendanceDocRef = (rid: string, id: string) => attendanceRef(rid).doc(id);
+export const userRef = (uid: string) => db().collection('users').doc(uid);
+export const markerRef = (rid: string) => restaurantRef(rid).collection('private').doc('checkin');
+export const photoHashRef = (rid: string, hash: string) => restaurantRef(rid).collection('photoHashes').doc(hash);
+export const checkinPhotoPrefix = (rid: string, eid: string) => `checkins/${rid}/${eid}/`;
+export const enrolPhotoPrefix = (rid: string, eid: string) => `faces/${rid}/${eid}/`;

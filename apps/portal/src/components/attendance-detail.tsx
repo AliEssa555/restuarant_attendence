@@ -116,8 +116,7 @@ function DetailBody({
         <div className="flex gap-2 rounded-md bg-muted p-3 text-sm">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <span>
-            Manual check-in. There is no photo and no location proof — the
-            employee tapped a button. Low trust by design.
+            Manual attendance has no face photo. GPS evidence, when supplied, appears below.
           </span>
         </div>
       ) : (
@@ -167,6 +166,15 @@ function DetailBody({
             />
           </dl>
         </>
+      )}
+
+      {record.gps && (
+        <div className="rounded-md border p-3 text-sm">
+          <p className="font-medium">Location evidence</p>
+          <p>{record.gps.lat.toFixed(6)}, {record.gps.lng.toFixed(6)}</p>
+          <p>Distance: {Math.round(record.gps.distance)} m · Accuracy: {Math.round(record.gps.accuracy)} m</p>
+          <p className={record.gps.isMock ? 'font-medium text-destructive' : ''}>Mock location: {record.gps.isMock ? 'Yes — possible fraud attempt' : 'No'}</p>
+        </div>
       )}
 
       {record.status === 'rejected' && (

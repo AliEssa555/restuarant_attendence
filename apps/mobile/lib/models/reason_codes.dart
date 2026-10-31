@@ -7,6 +7,11 @@
 class ReasonCodes {
   const ReasonCodes._();
 
+  static const locationRequired = 'LOCATION_REQUIRED';
+  static const locationOutOfRange = 'LOCATION_OUT_OF_RANGE';
+  static const locationMock = 'LOCATION_MOCK';
+  static const locationAccuracyLow = 'LOCATION_ACCURACY_LOW';
+  static const locationStale = 'LOCATION_STALE';
   static const markerNotFound = 'MARKER_NOT_FOUND';
   static const markerInvalid = 'MARKER_INVALID';
   static const faceNotEnrolled = 'FACE_NOT_ENROLLED';
@@ -24,6 +29,11 @@ class ReasonCodes {
   static const employeeInactive = 'EMPLOYEE_INACTIVE';
 
   static const Map<String, String> _messages = {
+    locationRequired: 'Enable location access to record attendance.',
+    locationOutOfRange: 'You are outside the restaurant area. Move closer and try again.',
+    locationMock: 'Mock location detected. Turn off fake GPS and try again.',
+    locationAccuracyLow: 'GPS accuracy is too low. Move outside and try again.',
+    locationStale: 'Your location is too old. Try again to capture a fresh location.',
     markerNotFound:
         "We couldn't see the check-in poster. Stand in front of it and try again.",
     markerInvalid:
@@ -57,6 +67,9 @@ class ReasonCodes {
   /// True when retrying immediately could plausibly succeed.
   static bool isRetryable(String? code) {
     switch (code) {
+      case locationRequired:
+      case locationOutOfRange:
+      case locationMock:
       case alreadyCheckedIn:
       case notCheckedIn:
       case methodNotAllowed:

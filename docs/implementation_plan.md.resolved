@@ -14,7 +14,7 @@ This project is a Flutter + Firebase restaurant attendance app. Employees check 
 > **GPS coordinates still come from the phone.** Advanced kernel-level spoofing is explicitly out of scope per your request. The design is as hardened as possible without moving GPS validation off-device (e.g. Play Integrity integration):
 > - The **server** receives raw coordinates and decides pass/fail — the phone sends no "I am close enough" boolean
 > - `isMockLocationProvider` flag from `geolocator` is **checked and rejected** server-side
-> - Coordinates must arrive **fresh** (within the same 3-minute window as the photo) using the Storage upload timestamp, not the phone clock
+> - Coordinates must arrive **fresh** (within the same 3-minute window as the photo) by comparing the reported capture timestamp to the server clock (the timestamp remains client-supplied evidence)
 > - Rate limiting and the presence state machine are unchanged
 > - A determined attacker with root and a custom kernel can still spoof GPS — that risk is documented and out of scope
 

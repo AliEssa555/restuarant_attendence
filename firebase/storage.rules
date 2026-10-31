@@ -38,14 +38,14 @@ service firebase.storage {
     // Enrolment photos.
     match /faces/{rid}/{eid}/{fileName} {
       allow read: if isStaffOf(rid) || isEmployeeSelf(rid, eid);
-      allow create: if isEmployeeSelf(rid, eid) && isValidJpeg();
+      allow create: if resource == null && isEmployeeSelf(rid, eid) && isValidJpeg();
       allow update, delete: if false;
     }
 
     // Check-in photos.
     match /checkins/{rid}/{eid}/{fileName} {
       allow read: if isStaffOf(rid);
-      allow create: if isEmployeeSelf(rid, eid) && isValidJpeg();
+      allow create: if resource == null && isEmployeeSelf(rid, eid) && isValidJpeg();
       allow update, delete: if false;
     }
 
