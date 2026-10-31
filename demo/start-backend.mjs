@@ -3,15 +3,24 @@ import { existsSync, writeFileSync, rmSync } from 'node:fs';
 const project = 'demo-restaurant-attendance';
 const readyFile = '/tmp/restaurant-demo-ready';
 rmSync(readyFile, { force: true });
-const args = ['--config', 'firebase.demo.json', '--project', project, 'emulators:start', '--only', 'auth,firestore,functions', '--export-on-exit=/data'];
+const args = ['--config', 'firebase.demo.json', '--project', project, 'emulators:start', '--only', 'auth,firestore,functions'];
 if (existsSync('/data/firebase-export-metadata.json')) args.push('--import=/data');
 const emulator = spawn('firebase', args, { stdio: 'inherit' });
 let stopping = false;
-for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => {
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, async () => {
+  if (stopping) return;
   stopping = true;
   rmSync(readyFile, { force: true });
-  // Firebase handles SIGINT by exporting before shutting down.
-  emulator.kill('SIGINT');
+  // Export explicitly before stopping the emulator. PID 1 / non-TTY signal
+  // handling otherwise lets some CLI versions exit without their auto-export.
+  const exporter = spawn('firebase', ['--config', 'firebase.demo.json', '--project', project,
+    'emulators:export', '/data', '--force'], { stdio: 'inherit' });
+  const timeout = setTimeout(() => exporter.kill('SIGTERM'), 45000);
+  try {
+    const code = await new Promise((resolve, reject) => { exporter.on('exit', resolve); exporter.on('error', reject); });
+    if (code !== 0) console.error('Demo data export failed. Keep the laptop running and inspect the export log.');
+  } catch (error) { console.error('Demo data export failed:', error); }
+  finally { clearTimeout(timeout); emulator.kill('SIGINT'); }
 });
 emulator.on('exit', code => process.exit(stopping ? 0 : process.exitCode || code || 1));
 emulator.on('error', error => { console.error(error); process.exit(1); });
