@@ -7,16 +7,13 @@ plugins {
 
 android {
     namespace = "com.demo.attendance.restaurant_attendance"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android requires API 37.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -41,6 +38,13 @@ android {
     // cannot memory-map it out of the APK.
     androidResources {
         noCompress += "tflite"
+    }
+}
+
+// Kotlin 2.4 uses the typed compiler DSL.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
