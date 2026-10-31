@@ -4,7 +4,7 @@ const project = 'demo-restaurant-attendance';
 const readyFile = '/tmp/restaurant-demo-ready';
 rmSync(readyFile, { force: true });
 const args = ['--config', 'firebase.demo.json', '--project', project, 'emulators:start', '--only', 'auth,firestore,functions'];
-if (existsSync('/data/firebase-export-metadata.json')) args.push('--import=/data');
+if (existsSync('/data/export/firebase-export-metadata.json')) args.push('--import=/data/export');
 const emulator = spawn('firebase', args, { stdio: 'inherit' });
 let stopping = false;
 for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, async () => {
@@ -15,7 +15,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, async () => {
   // Export explicitly before stopping the emulator. PID 1 / non-TTY signal
   // handling otherwise lets some CLI versions exit without their auto-export.
   const exporter = spawn('firebase', ['--config', 'firebase.demo.json', '--project', project,
-    'emulators:export', '/data', '--force'], { stdio: 'inherit' });
+    'emulators:export', '/data/export', '--force'], { stdio: 'inherit' });
   const timeout = setTimeout(() => exporter.kill('SIGTERM'), 45000);
   try {
     const code = await new Promise((resolve, reject) => { exporter.on('exit', resolve); exporter.on('error', reject); });
