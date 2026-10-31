@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import 'firebase_bootstrap.dart';
+import 'env.dart';
+import 'screens/local_demo_setup.dart';
 import 'routing/router.dart';
 import 'theme.dart';
 
@@ -13,6 +15,14 @@ Future<void> main() async {
   // phone's, so an employee travelling or with a wrong device clock sees the
   // same thing their manager does.
   tzdata.initializeTimeZones();
+
+  if (Env.localDemo) {
+    runApp(LocalDemoSetup(onConnect: (host) async {
+      await bootstrapFirebase(emulatorHost: host);
+      runApp(const ProviderScope(child: AttendanceApp()));
+    }));
+    return;
+  }
 
   await bootstrapFirebase();
 

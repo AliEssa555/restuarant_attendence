@@ -97,13 +97,13 @@ export default function DashboardPage() {
           loading={loading}
         />
         <StatCard
-          label="Pending reviews"
-          value={pendingRecords.data.length + pendingEnrolments}
+          label="Rejected attempts"
+          value={todayRecords.data.filter(r => r.status === 'rejected').length}
           icon={ClipboardCheck}
           tone={
-            pendingRecords.data.length + pendingEnrolments > 0 ? 'warning' : undefined
+            todayRecords.data.some(r => r.status === 'rejected') ? 'warning' : undefined
           }
-          href="/reviews"
+          href="/attendance"
           loading={loading || pendingRecords.loading}
         />
       </div>

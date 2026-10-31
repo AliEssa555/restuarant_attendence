@@ -39,11 +39,15 @@ jobs:
           channel: stable
           cache: true
 
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
       - name: Install required Android SDK
         shell: bash
         run: >-
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          "platforms;android-37" "build-tools;36.0.0"
+          "platforms;android-37.0" "build-tools;36.0.0"
 
       - name: Resolve Flutter dependencies
         working-directory: apps/mobile

@@ -8,7 +8,12 @@ class Env {
   /// Point every Firebase service at the local Emulator Suite.
   ///
   ///     flutter run --dart-define=USE_EMULATORS=true
-  static const bool useEmulators =
+  static const bool localDemo = bool.fromEnvironment('LOCAL_DEMO', defaultValue: false);
+
+  // Face recognition is deprecated for the current location attendance flow.
+  static const bool faceRecognitionEnabled = false;
+
+  static const bool useEmulators = localDemo ||
       bool.fromEnvironment('USE_EMULATORS', defaultValue: false);
 
   /// Host the emulators are reachable on from the device.

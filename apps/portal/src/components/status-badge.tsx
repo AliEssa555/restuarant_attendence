@@ -43,7 +43,7 @@ export function MethodBadge({ method }: { method: AttendanceMethod }) {
   ) : (
     <Badge variant="secondary">
       <Hand className="h-3 w-3" />
-      Manual
+      Location / tap
     </Badge>
   );
 }

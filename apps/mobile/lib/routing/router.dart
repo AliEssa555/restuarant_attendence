@@ -53,8 +53,8 @@ GateState _gateState(Ref ref) {
     signedIn: signedIn,
     isEmployee: isEmployee,
     mustChangePassword: appUser.value?.mustChangePassword ?? false,
-    needsEnrolment: face == FaceStatus.none || face == FaceStatus.rejected,
-    enrolmentPending: face == FaceStatus.pending,
+    needsEnrolment: Env.faceRecognitionEnabled && (face == FaceStatus.none || face == FaceStatus.rejected),
+    enrolmentPending: Env.faceRecognitionEnabled && face == FaceStatus.pending,
     // Default to allowing manual while the restaurant document is in flight,
     // so a slow read cannot trap someone on the enrolment screen.
     manualAllowed: restaurant.value?.allowsManual ?? true,
@@ -81,8 +81,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: listenable,
-    redirect: (context, state) =>
-        resolveRoute(_gateState(ref), state.matchedLocation),
+    redirect: (context, state) {
+      final gated = resolveRoute(_gateState(ref), state.matchedLocation);
+      if (gated != null) return gated;
+      if (!Env.faceRecognitionEnabled && [Routes.enrol, Routes.capture, Routes.debugSimilarity].contains(state.matchedLocation)) return Routes.home;
+      return null;
+    },
     routes: [
       GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),

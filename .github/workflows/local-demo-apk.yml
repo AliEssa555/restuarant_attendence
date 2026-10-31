@@ -1,0 +1,97 @@
+name: Local demo APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'scripts/ci/**'
+      - '.github/workflows/local-demo-apk.yml'
+  pull_request:
+    paths: ['apps/mobile/**', 'demo/**', 'compose.yaml', 'firebase.demo.json', 'scripts/**', '.github/workflows/local-demo-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-demo-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ORG_GRADLE_PROJECT_localDemo: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Install required Android SDK
+        shell: bash
+        run: >-
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "platforms;android-37.0" "build-tools;36.0.0"
+
+      - name: Resolve Flutter dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Analyze mobile app
+        working-directory: apps/mobile
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test mobile app
+        working-directory: apps/mobile
+        run: flutter test
+
+      - name: Build APK for manual testing
+        working-directory: apps/mobile
+        run: >-
+          flutter build apk --release
+          --build-number="$GITHUB_RUN_NUMBER"
+          --dart-define=LOCAL_DEMO=true
+          --dart-define=USE_EMULATORS=true
+          --dart-define=FAKE_FACE=false
+
+      - name: Upload downloadable APK
+        id: apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-local-demo-${{ github.run_number }}
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Package local server and instructions
+        run: git archive --format=zip --output="$RUNNER_TEMP/restaurant-local-demo.zip" HEAD
+
+      - name: Upload local server package
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-demo-server-package
+          path: ${{ runner.temp }}/restaurant-local-demo.zip
+          retention-days: 30
+
+      - name: Show demo instructions
+        env:
+          APK_DOWNLOAD_URL: ${{ steps.apk.outputs.artifact-url }}
+        run: |
+          echo "[Download local demo APK archive]($APK_DOWNLOAD_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Extract app-release.apk. Start Docker Compose on the laptop and enter its Wi-Fi IPv4 address in the demo app.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'See demo/README.md for accounts and GPS setup. No Firebase secrets are required for this build.' >> "$GITHUB_STEP_SUMMARY"

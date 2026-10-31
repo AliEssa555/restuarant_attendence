@@ -1,4 +1,5 @@
 'use client';
+import { FACE_RECOGNITION_ENABLED } from '@/lib/features';
 
 import * as React from 'react';
 import { Download } from 'lucide-react';
@@ -144,8 +145,8 @@ export default function AttendancePage() {
               onChange={(e) => setMethod(e.target.value)}
             >
               <option value="">Any</option>
-              <option value="face">Face</option>
-              <option value="manual">Manual</option>
+              {FACE_RECOGNITION_ENABLED && <option value="face">Face</option>}
+              <option value="manual">Location / tap</option>
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -201,7 +202,7 @@ export default function AttendancePage() {
                     <TableHead>Event</TableHead>
                     <TableHead className="hidden sm:table-cell">Method</TableHead>
                     <TableHead>Result</TableHead>
-                    <TableHead className="hidden lg:table-cell">Match</TableHead>
+                    {FACE_RECOGNITION_ENABLED && <TableHead className="hidden lg:table-cell">Match</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -243,9 +244,9 @@ export default function AttendancePage() {
                           </p>
                         )}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell tabular-nums">
+                      {FACE_RECOGNITION_ENABLED && (<TableCell className="hidden lg:table-cell tabular-nums">
                         {similarityLabel(record.face?.similarity)}
-                      </TableCell>
+                      </TableCell>)}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -282,10 +283,11 @@ function toCsv(rows: AttendanceRecord[], tz: string): string {
     'Reject reason',
     'Late',
     'Minutes late',
-    'Face match',
-    'Faces detected',
-    'Poster found',
-    'Poster valid',
+    'Latitude',
+    'Longitude',
+    'Distance (m)',
+    'Accuracy (m)',
+    'Mock location',
     'Record id',
   ];
 
@@ -302,10 +304,11 @@ function toCsv(rows: AttendanceRecord[], tz: string): string {
       r.status === 'rejected' ? reasonLabel(r.rejectReason) : '',
       r.late ? 'yes' : 'no',
       String(r.minutesLate ?? 0),
-      r.face?.similarity == null ? '' : r.face.similarity.toFixed(4),
-      r.face ? String(r.face.facesDetected) : '',
-      r.face ? (r.face.markerFound ? 'yes' : 'no') : '',
-      r.face ? (r.face.markerValid ? 'yes' : 'no') : '',
+      r.gps ? String(r.gps.lat) : '',
+      r.gps ? String(r.gps.lng) : '',
+      r.gps ? String(r.gps.distance) : '',
+      r.gps ? String(r.gps.accuracy) : '',
+      r.gps ? (r.gps.isMock ? 'yes' : 'no') : '',
       r.id,
     ].map(csvCell);
   });

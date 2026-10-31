@@ -5,10 +5,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val localDemoBuild = providers.gradleProperty("localDemo").orNull == "true"
+
 android {
     namespace = "com.demo.attendance.restaurant_attendance"
     // permission_handler_android requires API 37.
     compileSdk = 37
+    compileSdkMinor = 0
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -18,6 +21,9 @@ android {
 
     defaultConfig {
         applicationId = "com.demo.attendance.restaurant_attendance"
+        if (localDemoBuild) applicationIdSuffix = ".localdemo"
+        manifestPlaceholders["allowLocalHttp"] = localDemoBuild.toString()
+        manifestPlaceholders["appLabel"] = if (localDemoBuild) "Attendance Local Demo" else "Attendance"
         // firebase_auth requires 23+. ML Kit face detection and tflite_flutter
         // are both satisfied by 21, so 23 is the binding constraint.
         minSdk = 23

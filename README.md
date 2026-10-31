@@ -1,3 +1,5 @@
+> **Local customer demo:** see [demo/README.md](demo/README.md). Run `docker compose up --build -d --wait`, then use the **Local demo APK** workflow artifact. Current demos use GPS attendance; face recognition is deprecated.
+
 # Restaurant Attendance — Demo v0.1
 
 Attendance for small restaurants. Employees check in on their phone; managers
@@ -30,7 +32,7 @@ scripts         seed script
 
 | Tool | Why | Check |
 |---|---|---|
-| Node 20+ | Functions, portal, scripts | `node -v` |
+| Node 22+ | Functions, portal, scripts | `node -v` |
 | Firebase CLI | Emulators, deploy | `firebase --version` |
 | **Java 11+ (JDK)** | **The Firestore and Storage emulators are JVM processes. Without it `firebase emulators:start` cannot start them.** | `java -version` |
 | Flutter (stable) | The mobile app | `flutter --version` |
@@ -102,7 +104,7 @@ drop it once you have added a `.tflite` file and are testing on a real device.
 
 ---
 
-## How a face check-in actually works
+## Legacy face check-in (deprecated)
 
 1. **Enrolment, once.** The employee takes three photos (straight, slight left,
    slight right). The phone runs ML Kit face detection, aligns and crops each

@@ -1,5 +1,7 @@
 'use client';
 
+import { FACE_RECOGNITION_ENABLED } from '@/lib/features';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -95,10 +97,10 @@ export default function SettingsPage() {
         settings: {
           ...restaurant!.settings,
           requireLocation, locationLat: lat, locationLng: lng, locationRadiusMeters: radius,
-          attendanceMode,
+          attendanceMode: FACE_RECOGNITION_ENABLED ? attendanceMode : 'manual',
           faceVerifyThreshold: verify,
           faceReviewThreshold: review,
-          requireMarker,
+          requireMarker: FACE_RECOGNITION_ENABLED ? requireMarker : false,
           lateGraceMinutes: grace,
         },
       });
@@ -130,13 +132,13 @@ export default function SettingsPage() {
       <PageHeader
         title="Settings"
         description="Owner only. These apply to every employee in this restaurant."
-        action={
+        action={FACE_RECOGNITION_ENABLED ?
           <Button variant="outline" asChild>
             <Link href="/settings/poster">
               <Printer className="h-4 w-4" />
               Check-in poster
             </Link>
-          </Button>
+          </Button> : undefined
         }
       />
 
@@ -182,6 +184,7 @@ export default function SettingsPage() {
             <CardTitle>Check-in</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
+            {FACE_RECOGNITION_ENABLED && <>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="mode">Allowed methods</Label>
               <Select
@@ -216,6 +219,8 @@ export default function SettingsPage() {
               />
             </div>
 
+            </>}
+            <p className="text-sm text-muted-foreground">Employees check in and out using their GPS location. Configure the venue location below.</p>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="grace">Late grace period (minutes)</Label>
               <Input
@@ -256,6 +261,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {FACE_RECOGNITION_ENABLED && (
         <Card>
           <CardHeader>
             <CardTitle>Face matching thresholds</CardTitle>
@@ -297,6 +303,7 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <div>
           <Button type="submit" disabled={busy || thresholdsInvalid}>
