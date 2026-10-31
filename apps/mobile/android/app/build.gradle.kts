@@ -11,6 +11,7 @@ android {
     namespace = "com.demo.attendance.restaurant_attendance"
     // permission_handler_android requires API 37.
     compileSdk = 37
+    compileSdkMinor = 0
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
