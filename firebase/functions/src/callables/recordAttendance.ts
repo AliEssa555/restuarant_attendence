@@ -9,6 +9,7 @@ import {
   FACE_RATE_LIMIT_WINDOW_MS,
   PHOTO_MAX_AGE_MS,
 } from '../config';
+import { assertLocation, type GpsCoords } from '../lib/location';
 import {
   REASON,
   failedPrecondition,
@@ -31,6 +32,7 @@ import { computeLateness, getRestaurant, toLocalDate } from '../lib/time';
 import type {
   AttendanceDoc,
   AttendanceFace,
+  AttendanceGps,
   AttendanceType,
   EmployeeDoc,
   MarkerDoc,
@@ -44,10 +46,22 @@ const Device = z
   })
   .optional();
 
+/** GPS coordinates the phone captures at the moment of check-in. */
+const GpsSchema = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    accuracy: z.number().min(0).max(10_000),
+    isMockLocation: z.boolean(),
+    timestampMs: z.number().int(),
+  })
+  .optional();
+
 const Base = {
   type: z.enum(['check_in', 'check_out']),
   clientRequestId: z.string().trim().min(8).max(128),
   device: Device,
+  gpsCoords: GpsSchema,
 };
 
 const Input = z.discriminatedUnion('method', [
@@ -121,6 +135,47 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
         : 'Manual check-in is turned off for this restaurant. Use face check-in.',
       { code: REASON.METHOD_NOT_ALLOWED },
     );
+  }
+
+  // --- 2b. location geofence ---------------------------------------------------
+  // We always store GPS evidence when coords are supplied (even for rejected
+  // attempts) so mock-location fraud is visible in the audit trail.
+  let gpsEvidence: AttendanceGps | undefined;
+  const rawGps = input.gpsCoords as GpsCoords | undefined;
+
+  if (restaurant.settings.requireLocation) {
+    if (!rawGps) {
+      failedPrecondition(
+        'This restaurant requires a GPS location to check in. Enable location access and try again.',
+        { code: REASON.LOCATION_REQUIRED },
+      );
+    }
+    // assertLocation throws on any violation; the isMock flag is stored
+    // regardless through the gpsEvidence block below, even when it throws,
+    // because we catch, record, then re-throw. But Cloud Functions unwinding
+    // means it's cleaner to just pre-fill evidence before validating.
+    gpsEvidence = {
+      lat: rawGps.lat,
+      lng: rawGps.lng,
+      accuracy: rawGps.accuracy,
+      distance: 0,    // will be overwritten on success; stays 0 if mock-rejected
+      isMock: rawGps.isMockLocation,
+    };
+    // assertLocation will throw before we can overwrite distance for some
+    // failures (mock, accuracy, stale). That is intentional — distance is
+    // irrelevant when those checks fail, and 0 is an honest sentinel.
+    const distance = assertLocation(rawGps, restaurant.settings, now);
+    gpsEvidence = { ...gpsEvidence, distance };
+  } else if (rawGps) {
+    // Location not required but phone sent coords anyway — store as evidence.
+    const distance = assertLocation(rawGps, restaurant.settings, now);
+    gpsEvidence = {
+      lat: rawGps.lat,
+      lng: rawGps.lng,
+      accuracy: rawGps.accuracy,
+      distance,
+      isMock: rawGps.isMockLocation,
+    };
   }
 
   // --- 3. idempotency ------------------------------------------------------
@@ -252,11 +307,11 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
   const lateness =
     input.type === 'check_in'
       ? computeLateness(
-          now,
-          timezone,
-          employee.scheduledStart,
-          restaurant.settings.lateGraceMinutes,
-        )
+        now,
+        timezone,
+        employee.scheduledStart,
+        restaurant.settings.lateGraceMinutes,
+      )
       : null;
 
   const recordRef = attendanceRef(caller.rid).doc();
@@ -281,6 +336,7 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
       late: lateness?.late,
       minutesLate: lateness?.minutesLate,
       face,
+      gps: gpsEvidence,
       device: input.device,
       clientRequestId: input.clientRequestId,
     };

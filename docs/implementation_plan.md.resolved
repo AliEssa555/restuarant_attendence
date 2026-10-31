@@ -1,0 +1,185 @@
+# Location-Based Attendance + Firebase App Distribution
+
+This project is a Flutter + Firebase restaurant attendance app. Employees check in via manual tap or face+QR poster. The server (`recordAttendance` Cloud Function) is the single gatekeeper: clients send evidence, never conclusions.
+
+**Goal 1:** Add GPS geofencing — the phone must be inside a configurable radius of the restaurant before a check-in is accepted. The server validates coordinates (uploaded as evidence), not the phone.
+
+**Goal 2:** Document the Firebase App Distribution workflow so the APK can be uploaded and testers can install it with the Firebase App Tester app.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **GPS coordinates still come from the phone.** Advanced kernel-level spoofing is explicitly out of scope per your request. The design is as hardened as possible without moving GPS validation off-device (e.g. Play Integrity integration):
+> - The **server** receives raw coordinates and decides pass/fail — the phone sends no "I am close enough" boolean
+> - `isMockLocationProvider` flag from `geolocator` is **checked and rejected** server-side
+> - Coordinates must arrive **fresh** (within the same 3-minute window as the photo) using the Storage upload timestamp, not the phone clock
+> - Rate limiting and the presence state machine are unchanged
+> - A determined attacker with root and a custom kernel can still spoof GPS — that risk is documented and out of scope
+
+> [!IMPORTANT]
+> **Location fence is ON by default.** `requireLocation: true` is the default in `DEFAULT_SETTINGS`. Every new restaurant requires GPS unless an owner explicitly turns it off in the portal.
+
+> [!IMPORTANT]
+> **Portal location settings UI IS included.** A new "Location" card is added to the owner Settings page, allowing the owner to set lat/lng (via their browser's Geolocation or a manual input), radius, and toggle the requirement on/off.
+
+---
+
+## Proposed Changes
+
+### Portal (Next.js) — `apps/portal`
+
+#### [MODIFY] `apps/portal/src/app/settings/page.tsx` (or equivalent settings route)
+- Add a **"Location"** settings card (owner-only, same pattern as existing cards)
+  - Toggle: **Require location for check-in** (`requireLocation`)
+  - Number input: **Fence radius (metres)** — 10–5000
+  - Lat / Lng inputs + **"Use my browser location"** button (Geolocation API) + **"Open in Google Maps"** verify link
+  - Save writes to `restaurants/{rid}` `settings` (owner write already allowed — rules updated to accept new keys)
+
+#### [MODIFY] `apps/portal/src/lib/reason-codes.ts`
+- Add the 5 new reason-code strings with manager-facing messages (e.g. `LOCATION_MOCK` → "Employee used a mock/fake GPS location — possible fraud attempt")
+
+---
+
+## Proposed Changes
+
+### Cloud Functions
+
+#### [MODIFY] [config.ts](file:///c:/Users/PC/Downloads/restuarant_attendence/firebase/functions/src/config.ts)
+- Add `requireLocation: true`, `locationRadiusMeters: 100` to `DEFAULT_SETTINGS` (ON by default)
+- Add `LOCATION_MAX_AGE_MS = PHOTO_MAX_AGE_MS` (re-use existing 3-min constant)
+
+#### [NEW] `firebase/functions/src/lib/location.ts`
+- Pure function `assertLocation(coords, restaurantSettings, now)` 
+  - Validates shape (lat −90..90, lng −180..180, accuracy ≤ 150 m)
+  - Rejects if `isMockLocation === true` with `LOCATION_MOCK` (also triggers audit write — see below)
+  - Haversine distance check against restaurant lat/lng
+  - Rejects if `timestampMs` is older than `LOCATION_MAX_AGE_MS`
+  - Returns nothing on success, throws a typed error on failure
+
+#### [MODIFY] [recordAttendance.ts](file:///c:/Users/PC/Downloads/restuarant_attendence/firebase/functions/src/callables/recordAttendance.ts)
+- Extend `Base` Zod schema to accept optional `gpsCoords: { lat, lng, accuracy, isMockLocation, timestampMs }`
+- After step 2 (method check), add **step 2b: location gate**
+  - If `restaurant.settings.requireLocation` is true and no `gpsCoords` → reject `LOCATION_REQUIRED`
+  - If coords are present → validate with `assertLocation()`
+  - Rejection codes: `LOCATION_REQUIRED`, `LOCATION_OUT_OF_RANGE`, `LOCATION_MOCK`, `LOCATION_ACCURACY_LOW`, `LOCATION_STALE`
+- Store `gps: { lat, lng, accuracy, distance, isMock }` on the **every** `AttendanceDoc` when coords are present — this means mock-location attempts are retained as an audit trail regardless of the rejection, visible to staff in the portal
+
+#### [MODIFY] `firebase/functions/src/lib/errors.ts`
+- Add new `REASON` constants: `LOCATION_REQUIRED`, `LOCATION_OUT_OF_RANGE`, `LOCATION_MOCK`, `LOCATION_ACCURACY_LOW`, `LOCATION_STALE`
+
+#### [MODIFY] `firebase/functions/src/lib/types.ts`
+- Add `gps?: { lat: number; lng: number; accuracy: number; distance: number }` to `AttendanceDoc`
+- Add `location?: { lat: number; lng: number; radiusMeters: number }` and `requireLocation: boolean` to restaurant settings type
+
+---
+
+### Firestore Security Rules
+
+#### [MODIFY] [firestore.rules](file:///c:/Users/PC/Downloads/restuarant_attendence/firebase/firestore.rules)
+- Extend `validSettings()` to allow `requireLocation` (bool), `locationLat` (number), `locationLng` (number), `locationRadiusMeters` (number ≥ 10 ≤ 5000)
+- Also update `hasOnly` and `hasAll` sets correspondingly
+
+---
+
+### Flutter Mobile App
+
+#### [MODIFY] [pubspec.yaml](file:///c:/Users/PC/Downloads/restuarant_attendence/apps/mobile/pubspec.yaml)
+- Add `geolocator: ^13.0.2` dependency
+
+#### Android permissions — `apps/mobile/android/app/src/main/AndroidManifest.xml`
+- Add `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
+- Note: `ACCESS_BACKGROUND_LOCATION` is **NOT** needed — we only capture GPS at the moment the button is pressed
+
+#### iOS permissions — `apps/mobile/ios/Runner/Info.plist`
+- Add `NSLocationWhenInUseUsageDescription`
+
+#### [NEW] `apps/mobile/lib/services/location_service.dart`
+- `LocationService.capture()` → returns `GpsCapture` (lat, lng, accuracy, isMock, timestampMs)
+- Handles permission request flow
+- Throws typed `LocationException` subtypes: `LocationPermissionDenied`, `LocationServiceDisabled`, `LocationAccuracyTooLow`
+- Accuracy threshold: 150 m (matches server validation)
+
+#### [MODIFY] [models.dart](file:///c:/Users/PC/Downloads/restuarant_attendence/apps/mobile/lib/models/models.dart)
+- Add `requireLocation`, `locationLat?`, `locationLng?`, `locationRadiusMeters` fields to `Restaurant`
+- Parse from `settings` map in `fromSnapshot`
+
+#### [MODIFY] [attendance_service.dart](file:///c:/Users/PC/Downloads/restuarant_attendence/apps/mobile/lib/services/attendance_service.dart)
+- Add `gpsCoords` parameter (optional `GpsCapture`) to `recordManual` and `recordFace`
+- Serialize and send in callable payload only when non-null
+
+#### [MODIFY] [home_screen.dart](file:///c:/Users/PC/Downloads/restuarant_attendence/apps/mobile/lib/screens/home_screen.dart)
+- In `_manual()`: before calling `service.recordManual`, if `restaurant.requireLocation`, call `LocationService.capture()` and pass result; show user-friendly error if location fails
+- Face check-in already goes through `face_capture_screen.dart` → also passes GPS there
+
+#### [MODIFY] `apps/mobile/lib/screens/face_capture_screen.dart`
+- Capture GPS at the moment the shutter is pressed, pass to `attendance_service.recordFace`
+
+#### [MODIFY] [reason_codes.dart](file:///c:/Users/PC/Downloads/restuarant_attendence/apps/mobile/lib/models/reason_codes.dart)
+- Add constants and messages for `LOCATION_REQUIRED`, `LOCATION_OUT_OF_RANGE`, `LOCATION_MOCK`, `LOCATION_ACCURACY_LOW`, `LOCATION_STALE`
+- `LOCATION_REQUIRED` and `LOCATION_OUT_OF_RANGE` are non-retryable
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+**Existing tests to run after changes:**
+
+```bash
+# From project root — runs functions unit tests + Flutter tests
+npm test
+
+# Security rules against emulators (needs Java 11+ and firebase emulators running)
+npm run test:rules
+```
+
+**New unit test to add:**
+
+`firebase/functions/src/lib/location.test.ts` (vitest):
+- ✅ passes when coords are within radius
+- ❌ rejects `isMockLocation: true` with `LOCATION_MOCK`
+- ❌ rejects when distance > radiusMeters with `LOCATION_OUT_OF_RANGE`
+- ❌ rejects when accuracy > 150 with `LOCATION_ACCURACY_LOW`
+- ❌ rejects when `requireLocation: true` and no coords with `LOCATION_REQUIRED`
+- ❌ rejects stale timestamp with `LOCATION_STALE`
+
+Run new test alone:
+```bash
+cd firebase/functions && npx vitest run src/lib/location.test.ts
+```
+
+**Flutter test to add:**
+
+`apps/mobile/test/reason_codes_test.dart` already asserts that every code in `ReasonCodes.all` has a message. Adding the new codes to `reason_codes.dart` will automatically be caught by the existing test if I forget a message.
+
+Run:
+```bash
+cd apps/mobile && flutter test test/reason_codes_test.dart
+```
+
+### Manual Verification
+
+1. **Location OFF (existing behavior):** Set `requireLocation: false` for the test restaurant in Firestore. Open the app, tap "Check in manually" — should succeed as before.
+2. **Location ON, inside fence:** Set `requireLocation: true`, `locationLat/Lng` to your current GPS coords, `locationRadiusMeters: 200`. Tap "Check in" from that location — should succeed.
+3. **Location ON, outside fence:** Same settings but open the app from a different location (or use an Android emulator and set its GPS position to be >radius away) — should see "You are outside the restaurant area."
+4. **Mock location rejected:** On Android, enable "Mock Location" in developer settings with a fake-GPS app pointing inside the fence → should see "Mock location detected."
+
+---
+
+---
+
+## Part 2 — Firebase App Distribution Guide
+
+This will be produced as a `FIREBASE_DISTRIBUTION.md` guide after the code changes. It will cover:
+
+1. Enabling App Distribution in the Firebase console
+2. Building a signed APK/AAB: `flutter build apk --release`
+3. Uploading via Firebase CLI: `firebase appdistribution:distribute ...`
+4. Creating tester groups and sending invitation emails
+5. Testers installing via **Firebase App Tester** app
+
+> [!NOTE]
+> Firebase App Distribution is free and requires only a Firebase project (no Blaze plan needed for distribution itself, though Cloud Functions still requires Blaze).

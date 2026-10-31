@@ -15,6 +15,17 @@ export const DEFAULT_SETTINGS = {
   faceReviewThreshold: 0.6,
   requireMarker: true,
   lateGraceMinutes: 10,
+  /** GPS geofencing — ON by default. Owner can disable via portal settings. */
+  requireLocation: true,
+  /**
+   * Restaurant's GPS anchor point. Must be set before requireLocation does
+   * anything useful. Default (0,0) is deliberately in the ocean so an
+   * unconfigured fence never accidentally passes.
+   */
+  locationLat: 0,
+  locationLng: 0,
+  /** Geofence radius in metres (10 – 5000). */
+  locationRadiusMeters: 100,
 };
 
 /** Expected dimensionality of a face embedding, by model version. */
@@ -31,6 +42,12 @@ export const EMBEDDING_COPY_THRESHOLD = 0.999;
 
 /** A check-in photo must have been uploaded within this window. */
 export const PHOTO_MAX_AGE_MS = 3 * 60 * 1000;
+
+/** GPS coordinates must have been captured within this same window. */
+export const LOCATION_MAX_AGE_MS = PHOTO_MAX_AGE_MS;
+
+/** Max acceptable GPS accuracy (metres). Above this → LOCATION_ACCURACY_LOW. */
+export const LOCATION_MAX_ACCURACY_M = 150;
 
 /** Face check-in rate limit: at most N attempts per window, per employee. */
 export const FACE_RATE_LIMIT_MAX = 5;
