@@ -64,3 +64,7 @@ Thumbs.db
 # Test output
 coverage/
 *.tsbuildinfo
+
+# Cloud Functions source helpers are source, not compiled output.
+!firebase/functions/src/lib/
+!firebase/functions/src/lib/**

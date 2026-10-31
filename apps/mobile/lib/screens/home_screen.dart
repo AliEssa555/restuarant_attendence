@@ -8,6 +8,7 @@ import '../models/reason_codes.dart';
 import '../providers/app_providers.dart';
 import '../routing/route_gate.dart';
 import '../services/attendance_service.dart';
+import '../services/location_service.dart';
 import '../utils/restaurant_time.dart';
 import '../widgets/outcome_sheet.dart';
 
@@ -27,9 +28,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _busy = true);
     final service = ref.read(attendanceServiceProvider);
     try {
+      final restaurant = ref.read(restaurantProvider).value;
+      if (restaurant == null) throw const LocationException('Restaurant settings are still loading. Try again.');
+      final gps = restaurant.requireLocation ? await LocationService.capture() : null;
       final outcome = await service.recordManual(
         type: type,
         clientRequestId: service.newRequestId(),
+        gpsCoords: gps,
       );
       if (!mounted) return;
       await showOutcomeSheet(context, outcome: outcome);
@@ -37,7 +42,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
       await showFailureSheet(
         context,
-        message: ReasonCodes.message(reasonCodeOf(err)),
+        message: err is LocationException ? err.message : ReasonCodes.message(reasonCodeOf(err)),
       );
     } finally {
       if (mounted) setState(() => _busy = false);

@@ -76,7 +76,7 @@ service cloud.firestore {
       }
 
       function validSettings(s) {
-        return s.keys().hasOnly(['attendanceMode', 'faceVerifyThreshold', 'faceReviewThreshold', 'requireMarker', 'lateGraceMinutes'])
+        return s.keys().hasOnly(['attendanceMode', 'faceVerifyThreshold', 'faceReviewThreshold', 'requireMarker', 'lateGraceMinutes', 'requireLocation', 'locationLat', 'locationLng', 'locationRadiusMeters'])
           && s.keys().hasAll(['attendanceMode', 'faceVerifyThreshold', 'faceReviewThreshold', 'requireMarker', 'lateGraceMinutes'])
           && s.attendanceMode in ['manual', 'face', 'both']
           && s.faceVerifyThreshold is number
@@ -86,7 +86,11 @@ service cloud.firestore {
           && s.faceReviewThreshold <= s.faceVerifyThreshold
           && s.requireMarker is bool
           && s.lateGraceMinutes is int
-          && s.lateGraceMinutes >= 0 && s.lateGraceMinutes <= 240;
+          && s.lateGraceMinutes >= 0 && s.lateGraceMinutes <= 240
+          && (!('requireLocation' in s) || s.requireLocation is bool)
+          && (!('locationLat' in s) || (s.locationLat is number && s.locationLat >= -90 && s.locationLat <= 90))
+          && (!('locationLng' in s) || (s.locationLng is number && s.locationLng >= -180 && s.locationLng <= 180))
+          && (!('locationRadiusMeters' in s) || (s.locationRadiusMeters is number && s.locationRadiusMeters >= 10 && s.locationRadiusMeters <= 5000));
       }
 
       // ---------- marker secret: functions only ----------

@@ -16,6 +16,10 @@ export interface RestaurantSettings {
   faceReviewThreshold: number;
   requireMarker: boolean;
   lateGraceMinutes: number;
+  requireLocation: boolean;
+  locationLat: number;
+  locationLng: number;
+  locationRadiusMeters: number;
 }
 
 export interface Restaurant {
@@ -72,6 +76,7 @@ export interface AttendanceRecord {
     markerFound: boolean;
     markerValid: boolean;
   };
+  gps?: { lat: number; lng: number; accuracy: number; distance: number; isMock: boolean };
   review?: {
     by: string;
     at: Timestamp;

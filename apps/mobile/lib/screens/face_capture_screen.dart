@@ -8,6 +8,7 @@ import '../models/models.dart';
 import '../models/reason_codes.dart';
 import '../providers/app_providers.dart';
 import '../services/attendance_service.dart';
+import '../services/location_service.dart';
 import '../services/face_embedder.dart';
 import '../widgets/camera_capture.dart';
 import '../widgets/outcome_sheet.dart';
@@ -32,6 +33,7 @@ class _FaceCaptureScreenState extends ConsumerState<FaceCaptureScreen> {
   _Phase _phase = _Phase.camera;
   File? _photo;
   FaceEmbedding? _embedding;
+  GpsCapture? _gps;
   String? _hint;
   double _uploadProgress = 0;
 
@@ -45,12 +47,18 @@ class _FaceCaptureScreenState extends ConsumerState<FaceCaptureScreen> {
     });
 
     try {
+      final restaurant = ref.read(restaurantProvider).value;
+      if (restaurant == null) throw const LocationException('Restaurant settings are still loading. Try again.');
+      _gps = restaurant.requireLocation ? await LocationService.capture() : null;
       final embedding = await ref.read(faceEmbedderProvider).embedFile(jpeg);
       if (!mounted) return;
       setState(() {
         _embedding = embedding;
         _phase = _Phase.preview;
       });
+    } on LocationException catch (err) {
+      if (!mounted) return;
+      setState(() { _hint = err.message; _phase = _Phase.camera; });
     } on FaceCaptureException catch (err) {
       if (!mounted) return;
       setState(() {
@@ -99,6 +107,7 @@ class _FaceCaptureScreenState extends ConsumerState<FaceCaptureScreen> {
       final outcome = await service.recordFace(
         type: widget.type,
         clientRequestId: requestId,
+        gpsCoords: _gps,
         photoPath: photoPath,
         embedding: embedding.embedding,
         facesDetected: embedding.facesDetected,
@@ -127,7 +136,7 @@ class _FaceCaptureScreenState extends ConsumerState<FaceCaptureScreen> {
       final code = reasonCodeOf(err);
       final retry = await showFailureSheet(
         context,
-        message: ReasonCodes.message(code),
+        message: err is LocationException ? err.message : ReasonCodes.message(code),
         allowRetry: ReasonCodes.isRetryable(code),
       );
       if (!mounted) return;

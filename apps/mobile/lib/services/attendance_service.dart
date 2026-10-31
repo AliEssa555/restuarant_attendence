@@ -7,6 +7,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../env.dart';
+import 'location_service.dart';
 import '../firebase_bootstrap.dart';
 import '../models/models.dart';
 
@@ -14,8 +15,8 @@ import '../models/models.dart';
 /// employee-facing callables.
 ///
 /// The app uploads evidence and asks for a verdict. It never sends a similarity
-/// score, a status, or a timestamp — those would all be trivially forgeable, so
-/// the server derives them itself.
+/// score or a status. GPS capture time is evidence checked against the server
+/// clock; attendance time and the verdict are always assigned by the server.
 class AttendanceService {
   AttendanceService({FirebaseStorage? storage, FirebaseFunctions? callables})
       : _storage = storage ?? FirebaseStorage.instance,
@@ -100,11 +101,13 @@ class AttendanceService {
   Future<AttendanceOutcome> recordManual({
     required AttendanceType type,
     required String clientRequestId,
+    GpsCapture? gpsCoords,
   }) async {
     final result = await _functions.httpsCallable('recordAttendance').call({
       'type': attendanceTypeToWire(type),
       'method': 'manual',
       'clientRequestId': clientRequestId,
+      if (gpsCoords != null) 'gpsCoords': gpsCoords.toJson(),
       'device': _device(),
     });
     return AttendanceOutcome.fromCallable(
@@ -115,6 +118,7 @@ class AttendanceService {
   Future<AttendanceOutcome> recordFace({
     required AttendanceType type,
     required String clientRequestId,
+    GpsCapture? gpsCoords,
     required String photoPath,
     required List<double> embedding,
     required int facesDetected,
@@ -124,6 +128,7 @@ class AttendanceService {
       'type': attendanceTypeToWire(type),
       'method': 'face',
       'clientRequestId': clientRequestId,
+      if (gpsCoords != null) 'gpsCoords': gpsCoords.toJson(),
       'photoPath': photoPath,
       'embedding': embedding,
       'facesDetected': facesDetected,

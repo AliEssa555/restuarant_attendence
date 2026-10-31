@@ -1,4 +1,4 @@
-import { onCall } from 'firebase-functions/v2/https';
+import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import { IMAGE_CALL_OPTS } from '../lib/callable';
@@ -9,7 +9,7 @@ import {
   FACE_RATE_LIMIT_WINDOW_MS,
   PHOTO_MAX_AGE_MS,
 } from '../config';
-import { assertLocation, type GpsCoords } from '../lib/location';
+import { assertLocation, haversine, type GpsCoords } from '../lib/location';
 import {
   REASON,
   failedPrecondition,
@@ -137,51 +137,11 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
     );
   }
 
-  // --- 2b. location geofence ---------------------------------------------------
-  // We always store GPS evidence when coords are supplied (even for rejected
-  // attempts) so mock-location fraud is visible in the audit trail.
-  let gpsEvidence: AttendanceGps | undefined;
-  const rawGps = input.gpsCoords as GpsCoords | undefined;
-
-  if (restaurant.settings.requireLocation) {
-    if (!rawGps) {
-      failedPrecondition(
-        'This restaurant requires a GPS location to check in. Enable location access and try again.',
-        { code: REASON.LOCATION_REQUIRED },
-      );
-    }
-    // assertLocation throws on any violation; the isMock flag is stored
-    // regardless through the gpsEvidence block below, even when it throws,
-    // because we catch, record, then re-throw. But Cloud Functions unwinding
-    // means it's cleaner to just pre-fill evidence before validating.
-    gpsEvidence = {
-      lat: rawGps.lat,
-      lng: rawGps.lng,
-      accuracy: rawGps.accuracy,
-      distance: 0,    // will be overwritten on success; stays 0 if mock-rejected
-      isMock: rawGps.isMockLocation,
-    };
-    // assertLocation will throw before we can overwrite distance for some
-    // failures (mock, accuracy, stale). That is intentional — distance is
-    // irrelevant when those checks fail, and 0 is an honest sentinel.
-    const distance = assertLocation(rawGps, restaurant.settings, now);
-    gpsEvidence = { ...gpsEvidence, distance };
-  } else if (rawGps) {
-    // Location not required but phone sent coords anyway — store as evidence.
-    const distance = assertLocation(rawGps, restaurant.settings, now);
-    gpsEvidence = {
-      lat: rawGps.lat,
-      lng: rawGps.lng,
-      accuracy: rawGps.accuracy,
-      distance,
-      isMock: rawGps.isMockLocation,
-    };
-  }
-
   // --- 3. idempotency ------------------------------------------------------
   // A flaky connection makes the app retry; the same clientRequestId must
   // return the original outcome instead of creating a second record.
   const existing = await attendanceRef(caller.rid)
+    .where('employeeId', '==', eid)
     .where('clientRequestId', '==', input.clientRequestId)
     .limit(1)
     .get();
@@ -220,8 +180,24 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
     }
   }
 
+  // Keep location failures as rejected records, using the same transaction as
+  // normal attendance. Never advance presence for rejected GPS evidence.
+  const rawGps = input.gpsCoords as GpsCoords | undefined;
+  const gpsEvidence: AttendanceGps | undefined = rawGps ? {
+    lat: rawGps.lat, lng: rawGps.lng, accuracy: rawGps.accuracy,
+    distance: haversine(rawGps.lat, rawGps.lng, restaurant.settings.locationLat, restaurant.settings.locationLng),
+    isMock: rawGps.isMockLocation,
+  } : undefined;
+  let locationReason: string | undefined;
+  try {
+    assertLocation(rawGps, restaurant.settings, now);
+  } catch (error) {
+    if (!(error instanceof HttpsError)) throw error;
+    locationReason = (error.details as {code: string}).code;
+  }
+
   // --- 5. presence state machine (re-checked inside the transaction) ------
-  assertPresenceAllows(employee.presence?.status ?? 'out', input.type);
+  if (!locationReason) assertPresenceAllows(employee.presence?.status ?? 'out', input.type);
 
   // --- face-only evidence gathering ---------------------------------------
   let face: AttendanceFace | undefined;
@@ -230,7 +206,7 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
   let embeddingValid = false;
   let similarity: number | null = null;
 
-  if (input.method === 'face') {
+  if (input.method === 'face' && !locationReason) {
     // 6. the photo must be ours, fresh, and a real JPEG.
     if (!isPathUnder(input.photoPath, checkinPhotoPrefix(caller.rid, eid))) {
       permissionDenied('That photo does not belong to your account.');
@@ -286,7 +262,9 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
   }
 
   // --- 10. the verdict -----------------------------------------------------
-  const decision = decideStatus({
+  const decision = locationReason
+    ? { status: 'rejected' as const, rejectReason: locationReason }
+    : decideStatus({
     method: input.method,
     requireMarker: restaurant.settings.requireMarker,
     markerFound: markerResult.found,
@@ -314,15 +292,29 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
       )
       : null;
 
-  const recordRef = attendanceRef(caller.rid).doc();
+  const recordRef = attendanceRef(caller.rid).doc(sha256Hex(Buffer.from(`${eid}:${input.clientRequestId}`)));
+  let duplicate = false;
+  let saved: AttendanceDoc | undefined;
 
   await recordRef.firestore.runTransaction(async (tx) => {
     // Re-read presence inside the transaction: two phones, or a double tap,
     // could have raced past the check in step 5.
+    const existingRecord = await tx.get(recordRef);
+    if (existingRecord.exists) {
+      duplicate = true;
+      saved = existingRecord.data() as AttendanceDoc;
+      return;
+    }
     const freshEmployee = await tx.get(employeeDocRef);
     const freshPresence = ((freshEmployee.data() as EmployeeDoc | undefined)?.presence
       ?.status ?? 'out') as PresenceStatus;
-    assertPresenceAllows(freshPresence, input.type);
+    if (!(freshEmployee.data() as EmployeeDoc | undefined)?.active) {
+      failedPrecondition('Your account is inactive.', {code: REASON.EMPLOYEE_INACTIVE});
+    }
+    if (!locationReason) assertPresenceAllows(freshPresence, input.type);
+    if (photoHash && (await tx.get(photoHashRef(caller.rid, photoHash))).exists) {
+      failedPrecondition('That photo was already used.', {code: REASON.PHOTO_REUSED});
+    }
 
     const record: AttendanceDoc = {
       employeeId: eid,
@@ -340,6 +332,7 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
       device: input.device,
       clientRequestId: input.clientRequestId,
     };
+    saved = record;
     tx.create(recordRef, record);
 
     // The hash ledger is written even for rejected attempts, so a rejected
@@ -363,11 +356,11 @@ export const recordAttendance = onCall(IMAGE_CALL_OPTS, async (request) => {
 
   return {
     recordId: recordRef.id,
-    status: decision.status,
-    rejectReason: decision.rejectReason ?? null,
-    similarity,
-    late: lateness?.late ?? false,
-    minutesLate: lateness?.minutesLate ?? 0,
-    duplicate: false,
+    status: saved!.status,
+    rejectReason: saved!.rejectReason ?? null,
+    similarity: saved!.face?.similarity ?? null,
+    late: saved!.late ?? false,
+    minutesLate: saved!.minutesLate ?? 0,
+    duplicate,
   };
 });

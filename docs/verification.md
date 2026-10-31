@@ -55,3 +55,27 @@ npm run test:rules
   `MODEL.md`.
 - **The similarity thresholds are placeholders.** They are model-specific and
   must be measured; the calibration screen and procedure exist for exactly that.
+
+
+## GPS continuation checks
+
+- Location is required by default for both attendance methods and event types.
+- Owner settings include coordinates, radius (10–5000 m), browser location, map link and enable toggle.
+- Location failures are stored as rejected attendance. Supplied GPS evidence includes actual distance and mock status. Presence is unchanged.
+- A repeated employee/request key returns the original outcome, including rejected attempts; transaction IDs also prevent concurrent duplicate writes.
+- The source helper directory was absent from GitHub because `firebase/functions/.gitignore` matched every `lib` directory. The rule now ignores only the root build output; source helpers have been restored.
+- `npm --prefix firebase/functions test` covers the location gate, callable persistence/retry flow and restored helpers.
+- `npm --prefix firebase/functions run build` and `npm --prefix apps/portal run typecheck` check TypeScript.
+- Security rules tests include owner access, legacy settings compatibility and invalid GPS settings. They require Firestore and Storage emulators.
+- Flutter SDK is required for `flutter pub get`, `flutter analyze` and `flutter test`. Regenerate the mobile dependency lockfile after resolving geolocator on a Flutter workstation.
+- Real Android/iOS permission prompts, GPS accuracy and APK installation still need device verification.
+
+
+### Verified in the continuation environment
+
+- 34 backend tests passed.
+- 77 Firestore/Storage rules tests passed against local emulators.
+- Functions TypeScript build and portal production build passed.
+- Existing face-write test now attempts an actual value change rather than the already-seeded approved value.
+- Storage immutability test now attempts a content change. It exposed an overwrite path, fixed by requiring `resource == null` on photo creation.
+- Flutter analysis/tests and Android/iOS device checks were not run: the Flutter SDK is unavailable here. The mobile lockfile needs regeneration with `flutter pub get`.

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is used when you record attendance to verify you are at the restaurant.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Face check-in takes a photo of you in front of the restaurant's check-in poster. Only your manager can see it.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

@@ -7,6 +7,11 @@
  * photo" rather than "stand in front of the poster".
  */
 export const REASON_LABELS: Record<string, string> = {
+  LOCATION_REQUIRED: 'GPS location was not supplied',
+  LOCATION_MOCK: 'Mock GPS location detected — possible fraud attempt',
+  LOCATION_OUT_OF_RANGE: 'Outside the restaurant area',
+  LOCATION_ACCURACY_LOW: 'GPS accuracy was too low',
+  LOCATION_STALE: 'GPS location was stale or dated in the future',
   MARKER_NOT_FOUND: 'Check-in poster not visible in the photo',
   MARKER_INVALID: 'Wrong or expired poster',
   FACE_NOT_ENROLLED: 'Face not enrolled or not approved',
@@ -34,6 +39,7 @@ export function reasonLabel(code: string | null | undefined): string {
  * photo. Surfaced in the review queue so a manager can tell the two apart.
  */
 const SUSPICIOUS = new Set([
+  'LOCATION_MOCK',
   'MARKER_INVALID',
   'PHOTO_REUSED',
   'PHOTO_STALE',

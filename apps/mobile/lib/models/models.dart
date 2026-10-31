@@ -92,12 +92,18 @@ class Restaurant {
     required this.name,
     required this.timezone,
     required this.attendanceMode,
+    this.requireLocation = true,
+    this.locationLat = 0,
+    this.locationLng = 0,
+    this.locationRadiusMeters = 100,
   });
 
   final String id;
   final String name;
   final String timezone;
   final AttendanceMode attendanceMode;
+  final bool requireLocation;
+  final double locationLat, locationLng, locationRadiusMeters;
 
   bool get allowsManual =>
       attendanceMode == AttendanceMode.manual || attendanceMode == AttendanceMode.both;
@@ -111,6 +117,10 @@ class Restaurant {
       id: snap.id,
       name: (d['name'] as String?) ?? 'Restaurant',
       timezone: (d['timezone'] as String?) ?? 'Asia/Karachi',
+      requireLocation: settings['requireLocation'] as bool? ?? true,
+      locationLat: (settings['locationLat'] as num?)?.toDouble() ?? 0,
+      locationLng: (settings['locationLng'] as num?)?.toDouble() ?? 0,
+      locationRadiusMeters: (settings['locationRadiusMeters'] as num?)?.toDouble() ?? 100,
       attendanceMode: attendanceModeFromString(settings['attendanceMode'] as String?),
     );
   }

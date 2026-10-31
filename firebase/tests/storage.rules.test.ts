@@ -161,7 +161,7 @@ describe('immutability', () => {
       await uploadBytes(ref(context.storage(), checkinPath), TINY_JPEG, JPEG);
     });
     await assertFails(
-      uploadBytes(ref(asEmployee(), checkinPath), TINY_JPEG, JPEG),
+      uploadBytes(ref(asEmployee(), checkinPath), Buffer.concat([TINY_JPEG, Buffer.from([0])]), JPEG),
     );
   });
 

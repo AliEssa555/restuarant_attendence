@@ -52,11 +52,20 @@ export default function SettingsPage() {
   const [review, setReview] = React.useState(0.6);
   const [requireMarker, setRequireMarker] = React.useState(true);
   const [grace, setGrace] = React.useState(10);
+  const [requireLocation, setRequireLocation] = React.useState(true);
+  const [lat, setLat] = React.useState(0);
+  const [lng, setLng] = React.useState(0);
+  const [radius, setRadius] = React.useState(100);
+  const [locating, setLocating] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
   // Seed the form once the restaurant document arrives.
   React.useEffect(() => {
     if (!restaurant) return;
+    setRequireLocation(restaurant.settings.requireLocation ?? true);
+    setLat(restaurant.settings.locationLat ?? 0);
+    setLng(restaurant.settings.locationLng ?? 0);
+    setRadius(restaurant.settings.locationRadiusMeters ?? 100);
     setName(restaurant.name);
     setTimezone(restaurant.timezone);
     setAttendanceMode(restaurant.settings.attendanceMode);
@@ -84,6 +93,8 @@ export default function SettingsPage() {
         name: name.trim(),
         timezone,
         settings: {
+          ...restaurant!.settings,
+          requireLocation, locationLat: lat, locationLng: lng, locationRadiusMeters: radius,
           attendanceMode,
           faceVerifyThreshold: verify,
           faceReviewThreshold: review,
@@ -102,6 +113,16 @@ export default function SettingsPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function locate() {
+    if (!navigator.geolocation) { toast.error('Location is unavailable in this browser'); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => { setLat(coords.latitude); setLng(coords.longitude); setLocating(false); },
+      (err) => { toast.error('Could not get location', err.message); setLocating(false); },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+    );
   }
 
   return (
@@ -211,6 +232,26 @@ export default function SettingsPage() {
                 Checking in within this many minutes of their scheduled start is
                 not flagged late.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Location</CardTitle></CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="require-location">Require location for check-in and check-out</Label>
+              <Switch id="require-location" checked={requireLocation} onCheckedChange={setRequireLocation} />
+            </div>
+            <p className="text-sm text-muted-foreground">Set the restaurant location before employees check in. Use browser location while at the restaurant, or enter coordinates manually.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><Label htmlFor="latitude">Latitude</Label><Input id="latitude" type="number" required min={-90} max={90} step="any" value={lat} onChange={e => setLat(Number(e.target.value))} /></div>
+              <div><Label htmlFor="longitude">Longitude</Label><Input id="longitude" type="number" required min={-180} max={180} step="any" value={lng} onChange={e => setLng(Number(e.target.value))} /></div>
+            </div>
+            <div><Label htmlFor="radius">Fence radius (metres)</Label><Input id="radius" type="number" required min={10} max={5000} step={1} value={radius} onChange={e => setRadius(Number(e.target.value))} /></div>
+            <div className="flex flex-wrap items-center gap-4">
+              <Button type="button" variant="outline" disabled={locating} onClick={locate}>{locating ? 'Locating...' : 'Use my browser location'}</Button>
+              <a className="text-sm underline" href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
             </div>
           </CardContent>
         </Card>
