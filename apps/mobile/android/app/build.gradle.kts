@@ -29,11 +29,24 @@ android {
         versionName = flutter.versionName
     }
 
+    val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    signingConfigs {
+        if (!releaseKeystorePath.isNullOrBlank()) {
+            create("distribution") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Demo only: signed with the debug keys so `flutter build apk` works
-            // out of the box. Replace with a real signing config before shipping.
-            signingConfig = signingConfigs.getByName("debug")
+            // CI supplies a stable release key. Local demos retain debug signing.
+            signingConfig = signingConfigs.getByName(
+                if (releaseKeystorePath.isNullOrBlank()) "debug" else "distribution"
+            )
         }
     }
 

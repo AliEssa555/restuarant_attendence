@@ -1,0 +1,120 @@
+name: Android APK to Firebase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'scripts/ci/**'
+      - '.github/workflows/android-distribution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-distribution-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  distribute:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
+      FIREBASE_TESTER_GROUPS: ${{ vars.FIREBASE_TESTER_GROUPS }}
+      ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/restaurant-release.jks
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Firebase configuration and signing key
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: python3 scripts/ci/prepare_android.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Resolve Flutter dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Analyze mobile app
+        working-directory: apps/mobile
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test mobile app
+        working-directory: apps/mobile
+        run: flutter test
+
+      - name: Build signed APK
+        working-directory: apps/mobile
+        run: >-
+          flutter build apk --release
+          --build-number="$GITHUB_RUN_NUMBER"
+          --dart-define=USE_EMULATORS=false
+          --dart-define=FAKE_FACE=false
+
+      - name: Save APK as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-attendance-${{ github.run_number }}
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Distribute APK to Firebase testers
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-distribution.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$GOOGLE_APPLICATION_CREDENTIALS"' EXIT
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          raw = os.environ.get('FIREBASE_SERVICE_ACCOUNT_JSON', '')
+          if not raw:
+              raise SystemExit('Missing GitHub secret: FIREBASE_SERVICE_ACCOUNT_JSON')
+          account = json.loads(raw)
+          config = json.loads(Path('apps/mobile/android/app/google-services.json').read_text())
+          if account.get('type') != 'service_account' or not account.get('private_key'):
+              raise SystemExit('FIREBASE_SERVICE_ACCOUNT_JSON must be a service account key JSON.')
+          if account.get('project_id') != config['project_info']['project_id']:
+              raise SystemExit('Service account and Android app must belong to the same Firebase project.')
+          path = Path(os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
+          path.write_text(raw)
+          path.chmod(0o600)
+          PY
+          printf 'GitHub build %s\nCommit: %s\n' "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > "$RUNNER_TEMP/release-notes.txt"
+          npx --yes firebase-tools@15.34.2 appdistribution:distribute \
+            apps/mobile/build/app/outputs/flutter-apk/app-release.apk \
+            --app "$FIREBASE_APP_ID" \
+            --groups "$FIREBASE_TESTER_GROUPS" \
+            --release-notes-file "$RUNNER_TEMP/release-notes.txt" \
+            --non-interactive
+
+      - name: Clean up signing and configuration files
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$ANDROID_KEYSTORE_PATH" "$RUNNER_TEMP/firebase-distribution.json"
+          rm -f apps/mobile/android/app/google-services.json
+          git restore apps/mobile/lib/firebase_options.dart
