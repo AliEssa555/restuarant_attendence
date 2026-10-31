@@ -19,7 +19,7 @@ Internet is required for the first Docker build and first APK download. Once the
 Open PowerShell/Terminal in the extracted folder containing `compose.yaml`:
 
 ```powershell
-docker compose up --build -d
+docker compose up --build -d --wait
 ```
 
 The first build can take several minutes. Check readiness:
